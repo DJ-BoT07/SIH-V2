@@ -8,16 +8,16 @@ export function WeekView({ date, events }) {
   const hours = Array.from({ length: 24 }, (_, i) => i)
 
   return (
-    <div className="flex flex-col">
-      <div className="flex border-b">
-        <div className="w-20" /> {/* Time column spacer */}
+    <div className="flex flex-col bg-black">
+      <div className="flex border-b border-gray-800">
+        <div className="w-20" />
         {weekDays.map((day, index) => (
           <motion.div
             key={day.toString()}
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: index * 0.05 }}
-            className="flex-1 text-center py-2"
+            className="flex-1 text-center py-2 text-gray-300"
           >
             <div className="text-sm font-medium">
               {format(day, "EEE")}
@@ -40,7 +40,7 @@ export function WeekView({ date, events }) {
               transition={{ delay: hour * 0.01 }}
               className="group flex min-h-[60px]"
             >
-              <div className="w-20 py-2 text-sm text-muted-foreground">
+              <div className="w-20 py-2 text-sm text-gray-500">
                 {timeString}
               </div>
               <div className="flex flex-1">
@@ -55,8 +55,8 @@ export function WeekView({ date, events }) {
                     <motion.div
                       key={day.toString()}
                       className={cn(
-                        "flex-1 border-l pl-2 py-1",
-                        "group-hover:bg-accent/50 transition-colors duration-200"
+                        "flex-1 border-l border-gray-800 pl-2 py-1",
+                        "group-hover:bg-gray-800/50 transition-colors duration-200"
                       )}
                     >
                       {dayEvents.map((event) => (

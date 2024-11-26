@@ -22,17 +22,17 @@ export function YearView({ date, events }) {
             initial={{ opacity: 0, scale: 0.9 }}
             animate={{ opacity: 1, scale: 1 }}
             transition={{ delay: monthIndex * 0.05 }}
-            className="rounded-lg border p-4 hover:shadow-lg transition-shadow"
+            className="rounded-lg border border-gray-800 p-4 hover:shadow-lg transition-shadow bg-gray-900"
           >
             <motion.h3 
-              className="text-sm font-medium mb-2"
+              className="text-sm font-medium mb-2 text-gray-300"
               whileHover={{ scale: 1.05 }}
             >
               {format(month, "MMMM")}
             </motion.h3>
             <div className="grid grid-cols-7 gap-1 text-center mb-1">
               {weekDays.map((day, index) => (
-                <div key={`${monthIndex}-${day}-${index}`} className="text-xs text-muted-foreground">
+                <div key={`${monthIndex}-${day}-${index}`} className="text-xs text-gray-500">
                   {day[0]}
                 </div>
               ))}

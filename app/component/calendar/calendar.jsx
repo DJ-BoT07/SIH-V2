@@ -37,66 +37,34 @@ const sampleEvents = [
     title: "Guru Nanak Jayanti",
     date: new Date(2024, 10, 15),
     type: "festival"
-  },
-  {
-    id: "5",
-    title: "Team Planning Meeting",
-    date: new Date(2024, 10, 7),
-    time: "10:00 AM",
-    type: "meeting"
-  },
-  {
-    id: "6",
-    title: "Project Deadline",
-    date: new Date(2024, 10, 10),
-    time: "5:00 PM",
-    type: "deadline"
-  },
-  {
-    id: "7",
-    title: "Christmas",
-    date: new Date(2024, 11, 25),
-    type: "festival"
-  },
-  {
-    id: "8",
-    title: "New Year's Eve",
-    date: new Date(2024, 11, 31),
-    type: "festival"
-  },
-  {
-    id: "9",
-    title: "Quarterly Review",
-    date: new Date(2024, 10, 20),
-    time: "2:00 PM",
-    type: "meeting"
-  },
-  {
-    id: "10",
-    title: "Team Building Event",
-    date: new Date(2024, 10, 25),
-    time: "3:00 PM",
-    type: "event"
   }
 ]
 
-export function Calendar() {
-  const [date, setDate] = React.useState(new Date(2024, 10))
+export function Calendar({ onDateSelect }) {
+  const [currentDate, setCurrentDate] = React.useState(new Date(2024, 10))
+  const [selectedDate, setSelectedDate] = React.useState(null)
   const [view, setView] = React.useState("month")
+
+  const handleDateSelect = (date) => {
+    setSelectedDate(date);
+    if (onDateSelect) {
+      onDateSelect(date);
+    }
+  };
 
   const handleNavigate = (direction) => {
     switch (view) {
       case "day":
-        setDate(direction === "next" ? addDays(date, 1) : subDays(date, 1))
+        setCurrentDate(direction === "next" ? addDays(currentDate, 1) : subDays(currentDate, 1))
         break
       case "week":
-        setDate(direction === "next" ? addWeeks(date, 1) : subWeeks(date, 1))
+        setCurrentDate(direction === "next" ? addWeeks(currentDate, 1) : subWeeks(currentDate, 1))
         break
       case "month":
-        setDate(direction === "next" ? addMonths(date, 1) : subMonths(date, 1))
+        setCurrentDate(direction === "next" ? addMonths(currentDate, 1) : subMonths(currentDate, 1))
         break
       case "year":
-        setDate(direction === "next" ? addYears(date, 1) : subYears(date, 1))
+        setCurrentDate(direction === "next" ? addYears(currentDate, 1) : subYears(currentDate, 1))
         break
     }
   }
@@ -104,15 +72,15 @@ export function Calendar() {
   const getDateRangeText = () => {
     switch (view) {
       case "day":
-        return format(date, "MMMM d, yyyy")
+        return format(currentDate, "MMMM d, yyyy")
       case "week":
-        const weekStart = startOfWeek(date)
-        const weekEnd = endOfWeek(date)
+        const weekStart = startOfWeek(currentDate)
+        const weekEnd = endOfWeek(currentDate)
         return `${format(weekStart, "MMM d")} - ${format(weekEnd, "MMM d, yyyy")}`
       case "month":
-        return format(date, "MMMM yyyy")
+        return format(currentDate, "MMMM yyyy")
       case "year":
-        return format(date, "yyyy")
+        return format(currentDate, "yyyy")
       default:
         return ""
     }
@@ -121,13 +89,13 @@ export function Calendar() {
   const renderView = () => {
     switch (view) {
       case "day":
-        return <DayView date={date} events={sampleEvents} />
+        return <DayView date={currentDate} selectedDate={selectedDate} events={sampleEvents} onDateSelect={handleDateSelect} />
       case "week":
-        return <WeekView date={date} events={sampleEvents} />
+        return <WeekView date={currentDate} selectedDate={selectedDate} events={sampleEvents} onDateSelect={handleDateSelect} />
       case "month":
-        return <CalendarGrid date={date} events={sampleEvents} />
+        return <CalendarGrid date={currentDate} selectedDate={selectedDate} events={sampleEvents} onDateSelect={handleDateSelect} />
       case "year":
-        return <YearView date={date} events={sampleEvents} />
+        return <YearView date={currentDate} selectedDate={selectedDate} events={sampleEvents} onDateSelect={handleDateSelect} />
       default:
         return null
     }
@@ -137,12 +105,12 @@ export function Calendar() {
     <motion.div 
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex h-screen flex-col bg-background text-foreground"
+      className="flex flex-col bg-black text-white"
     >
       <motion.header 
         initial={{ y: -20 }}
         animate={{ y: 0 }}
-        className="flex items-center justify-between border-b px-6 py-3"
+        className="flex items-center justify-between border-b border-gray-800 px-6 py-3"
       >
         <div className="flex items-center gap-4">
           <motion.h1 
@@ -201,11 +169,11 @@ export function Calendar() {
       </motion.header>
       <motion.main 
         layout
-        className="flex-1 overflow-auto p-6"
+        className="flex-1 overflow-auto p-6 bg-black"
       >
         <AnimatePresence mode="wait">
           <motion.div
-            key={`${view}-${date.toString()}`}
+            key={`${view}-${currentDate.toString()}`}
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}

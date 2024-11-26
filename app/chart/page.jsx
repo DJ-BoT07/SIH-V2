@@ -16,9 +16,17 @@ function ChartContent() {
   const subArea = searchParams.get('subArea');
   const dateString = searchParams.get('date');
 
-  const [selectedDate, setSelectedDate] = useState(dateString ? parse(dateString, 'yyyy-MM-dd', new Date()) : new Date());
+  const [selectedDate, setSelectedDate] = useState(() => {
+    if (!dateString) return new Date();
+    try {
+      return parse(dateString, 'yyyy-MM-dd', new Date());
+    } catch (error) {
+      console.error('Error parsing date:', error);
+      return new Date();
+    }
+  });
 
-  const formattedDate = selectedDate ? format(selectedDate, 'MMMM d, yyyy') : 'Not selected';
+  const formattedDate = format(selectedDate, 'MMMM d, yyyy');
 
   return (
     <div className="bg-gradient-to-br from-gray-900 to-blue-900 min-h-screen p-4 sm:p-6 md:p-8">

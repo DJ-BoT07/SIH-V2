@@ -2,21 +2,21 @@ import { cn } from "@/lib/utils"
 import { addDays, format, startOfWeek } from "date-fns"
 import { motion } from "framer-motion"
 
-export function CalendarGrid({ date, events }) {
+export function CalendarGrid({ date, selectedDate, events, onDateSelect }) {
   const startDate = startOfWeek(date)
   const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 
   return (
     <motion.div 
       layout
-      className="grid grid-cols-7 gap-px bg-border"
+      className="grid grid-cols-7 gap-px bg-gray-800"
     >
       {weekDays.map((day) => (
         <motion.div
           key={day}
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-background p-2 text-sm font-medium text-muted-foreground"
+          className="bg-gray-900 p-2 text-sm font-medium text-gray-400"
         >
           {day}
         </motion.div>
@@ -29,6 +29,7 @@ export function CalendarGrid({ date, events }) {
             format(currentDate, "yyyy-MM-dd")
         )
         const isCurrentMonth = format(currentDate, "MM") === format(date, "MM")
+        const isSelected = selectedDate && format(currentDate, "yyyy-MM-dd") === format(selectedDate, "yyyy-MM-dd")
 
         return (
           <motion.div
@@ -42,25 +43,28 @@ export function CalendarGrid({ date, events }) {
             whileHover={{ 
               scale: 1.02,
               transition: { duration: 0.2 },
-              backgroundColor: "rgba(var(--background), 1)",
-              boxShadow: "0 4px 20px rgba(0, 0, 0, 0.1)",
+              backgroundColor: "rgba(17, 17, 17, 1)",
+              boxShadow: "0 4px 20px rgba(0, 0, 0, 0.3)",
               zIndex: 10
             }}
+            onClick={() => onDateSelect && onDateSelect(currentDate)}
             className={cn(
-              "relative min-h-[120px] bg-background p-2 transition-colors duration-200",
-              !isCurrentMonth && "bg-muted/50 text-muted-foreground",
-              "hover:border-primary/50 hover:bg-accent/50"
+              "relative min-h-[120px] bg-gray-900 p-2 transition-colors duration-200 cursor-pointer",
+              !isCurrentMonth && "bg-gray-900/50 text-gray-600",
+              "hover:border-blue-500/50 hover:bg-gray-800",
+              isSelected && "ring-2 ring-blue-500"
             )}
           >
             <motion.div 
               className={cn(
                 "flex h-7 w-7 items-center justify-center rounded-full text-sm",
-                !isCurrentMonth ? "text-muted-foreground" : "font-medium",
-                dayEvents.length > 0 && "bg-primary/10 text-primary"
+                !isCurrentMonth ? "text-gray-600" : "font-medium",
+                dayEvents.length > 0 && "bg-blue-500/20 text-blue-500",
+                isSelected && "bg-blue-500 text-blue-500-foreground"
               )}
               whileHover={{
                 scale: 1.1,
-                backgroundColor: "rgba(var(--primary), 0.15)",
+                backgroundColor: "rgba(var(--blue-500), 0.15)",
               }}
             >
               {format(currentDate, "d")}

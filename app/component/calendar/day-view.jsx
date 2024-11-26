@@ -7,7 +7,7 @@ export function DayView({ date, events }) {
   const dayEvents = events.filter(event => isSameDay(event.date, date))
 
   return (
-    <div className="flex flex-col space-y-2">
+    <div className="flex flex-col space-y-2 bg-black">
       {hours.map((hour) => {
         const timeString = `${hour.toString().padStart(2, '0')}:00`
         const hourEvents = dayEvents.filter(event => {
@@ -24,13 +24,13 @@ export function DayView({ date, events }) {
             transition={{ delay: hour * 0.02 }}
             className="group flex"
           >
-            <div className="w-20 py-2 text-sm text-muted-foreground">
+            <div className="w-20 py-2 text-sm text-gray-500">
               {timeString}
             </div>
             <motion.div
               className={cn(
-                "flex-1 border-l pl-4 py-2",
-                "group-hover:bg-accent/50 transition-colors duration-200"
+                "flex-1 border-l border-gray-800 pl-4 py-2",
+                "group-hover:bg-gray-800/50 transition-colors duration-200"
               )}
             >
               {hourEvents.map((event) => (
