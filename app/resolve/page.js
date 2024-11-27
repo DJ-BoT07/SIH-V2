@@ -16,6 +16,35 @@ import {
   ReferenceArea
 } from "recharts";
 
+// Function to determine if a time slot needs slot-wise pricing
+const isSlotWiseNeeded = (demand, baseThreshold = 15000) => {
+  return demand > baseThreshold;
+};
+
+// Function to calculate RTC and slot-wise prices
+const calculatePrices = (demand, hour) => {
+  const baseRTCPrice = 4; // Base RTC price per unit
+  
+  // Determine time-based multiplier
+  let timeMultiplier = 1;
+  if (hour >= 6 && hour < 10) timeMultiplier = 1.2; // Morning peak
+  if (hour >= 18 && hour < 22) timeMultiplier = 1.3; // Evening peak
+  if (hour >= 0 && hour < 6) timeMultiplier = 0.8;  // Night discount
+
+  // RTC Price with time consideration
+  const rtcPrice = baseRTCPrice * timeMultiplier;
+
+  // Slot-wise pricing for high demand periods
+  const slotPrice = isSlotWiseNeeded(demand) 
+    ? baseRTCPrice * (1 + (demand - 15000) / 10000) * timeMultiplier
+    : null;
+
+  return {
+    rtcPrice: Math.round(rtcPrice * 100) / 100,
+    slotPrice: slotPrice ? Math.round(slotPrice * 100) / 100 : null
+  };
+};
+
 // Function to generate optimal buying slots
 const generateOptimalSlots = (date, peakLoad) => {
   const seed = date.getTime();
@@ -26,15 +55,21 @@ const generateOptimalSlots = (date, peakLoad) => {
 
   // Generate 24-hour data with prices and demand
   const hourlyData = Array.from({ length: 24 }, (_, hour) => {
-    const basePrice = 5 + 2 * Math.sin((hour - 6) * Math.PI / 12); // Price varies throughout day
-    const price = basePrice * random(0.8, 1.2, seed + hour);
+    const basePrice = 5 + 2 * Math.sin((hour - 6) * Math.PI / 12);
     const demand = peakLoad * random(0.7, 1.1, seed + hour + 24);
+    const { rtcPrice, slotPrice } = calculatePrices(demand, hour);
+    
+    const recommendedPrice = slotPrice || rtcPrice;
+    const pricingType = slotPrice ? 'Slot-wise' : 'RTC';
     
     return {
       hour: `${hour}:00`,
-      price: Math.round(price * 100) / 100,
       demand: Math.round(demand),
-      isOptimal: price < basePrice && demand < peakLoad
+      rtcPrice,
+      slotPrice,
+      recommendedPrice,
+      pricingType,
+      isOptimal: recommendedPrice < basePrice
     };
   });
 
@@ -43,10 +78,9 @@ const generateOptimalSlots = (date, peakLoad) => {
 
 // Calculate potential savings
 const calculateSavings = (slots) => {
-  const avgPrice = slots.reduce((sum, slot) => sum + slot.price, 0) / slots.length;
-  const optimalSlots = slots.filter(slot => slot.isOptimal);
-  const avgOptimalPrice = optimalSlots.reduce((sum, slot) => sum + slot.price, 0) / optimalSlots.length;
-  const potentialSavings = (avgPrice - avgOptimalPrice) * slots.length * 1000; // Assuming 1000 units per slot
+  const rtcTotal = slots.reduce((sum, slot) => sum + slot.rtcPrice, 0);
+  const optimalTotal = slots.reduce((sum, slot) => sum + slot.recommendedPrice, 0);
+  const potentialSavings = (rtcTotal - optimalTotal) * 1000; // Assuming 1000 units per slot
   return Math.round(potentialSavings * 100) / 100;
 };
 
@@ -77,7 +111,7 @@ export default function ResolvePage() {
         className="max-w-7xl mx-auto"
       >
         <h1 className="text-3xl sm:text-4xl font-bold mb-6 text-white text-center">
-          Optimal Electricity Buying Slots
+          Optimal Electricity Buying Strategy
         </h1>
         
         <div className="grid gap-6">
@@ -151,9 +185,16 @@ export default function ResolvePage() {
                   <Line 
                     yAxisId="left"
                     type="monotone" 
-                    dataKey="price" 
+                    dataKey="rtcPrice" 
                     stroke="#8884d8" 
-                    name="Price (₹/unit)"
+                    name="RTC Price (₹/unit)"
+                  />
+                  <Line 
+                    yAxisId="left"
+                    type="monotone" 
+                    dataKey="slotPrice" 
+                    stroke="#ff4d4f" 
+                    name="Slot Price (₹/unit)"
                   />
                   <Line 
                     yAxisId="right"
@@ -162,18 +203,6 @@ export default function ResolvePage() {
                     stroke="#82ca9d" 
                     name="Demand (MW)"
                   />
-                  {slots.map((slot, index) => (
-                    slot.isOptimal && (
-                      <ReferenceArea
-                        key={index}
-                        x1={slot.hour}
-                        x2={slot.hour}
-                        yAxisId="left"
-                        fill="#4CAF50"
-                        fillOpacity={0.1}
-                      />
-                    )
-                  ))}
                 </LineChart>
               </ResponsiveContainer>
             </div>
@@ -186,16 +215,29 @@ export default function ResolvePage() {
             transition={{ delay: 0.4 }}
             className="bg-black/30 p-6 rounded-lg backdrop-blur-sm border-2 border-green-500"
           >
-            <h3 className="text-xl font-bold text-white mb-4">Optimal Buying Slots</h3>
+            <h3 className="text-xl font-bold text-white mb-4">Recommended Buying Strategy</h3>
             <div className="grid gap-2">
-              {slots.filter(slot => slot.isOptimal).map((slot, index) => (
+              {slots.map((slot, index) => (
                 <div 
                   key={index}
-                  className="flex items-center justify-between bg-green-500/10 p-3 rounded-lg"
+                  className={`flex items-center justify-between p-3 rounded-lg ${
+                    slot.pricingType === 'Slot-wise' 
+                      ? 'bg-red-500/10' 
+                      : 'bg-blue-500/10'
+                  }`}
                 >
                   <div>
                     <span className="text-white font-medium">{slot.hour}</span>
-                    <span className="ml-4 text-green-400">₹{slot.price}/unit</span>
+                    <span className={`ml-4 ${
+                      slot.pricingType === 'Slot-wise' 
+                        ? 'text-red-400' 
+                        : 'text-blue-400'
+                    }`}>
+                      ₹{slot.recommendedPrice}/unit
+                    </span>
+                    <span className="ml-4 text-gray-400">
+                      ({slot.pricingType})
+                    </span>
                   </div>
                   <div className="text-green-400">
                     {slot.demand} MW
