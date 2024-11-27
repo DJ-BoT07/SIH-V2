@@ -5,6 +5,7 @@ import { useSearchParams, useRouter } from 'next/navigation';
 import { format, parse } from 'date-fns';
 import dynamic from 'next/dynamic';
 import { FullPageLoader, Loader } from "../component/Loader";
+import { generateHourlyData, calculateDailyStats } from '@/lib/utils';
 
 const CurrentLoadChart = dynamic(() => import('./CurrentLoadChart'), { 
   loading: () => <Loader />,
@@ -40,6 +41,15 @@ function ChartContent() {
     }
   });
 
+  const [hourlyData, setHourlyData] = useState([]);
+  const [stats, setStats] = useState(null);
+
+  useEffect(() => {
+    const data = generateHourlyData(selectedDate);
+    setHourlyData(data);
+    setStats(calculateDailyStats(data));
+  }, [selectedDate]);
+
   const formattedDate = format(selectedDate, 'MMMM d, yyyy');
 
   // Update selectedDate when URL date changes
@@ -59,11 +69,15 @@ function ChartContent() {
     return () => clearTimeout(timer);
   }, [dateString]);
 
+  if (!stats) return <Loader />;
+
   return (
     <div className="bg-gradient-to-br from-gray-900 to-blue-900 min-h-screen p-4 sm:p-6 md:p-8">
       {isLoading && <FullPageLoader />}
       <div className="rounded-lg shadow-lg mb-8">
-        <h1 className="text-3xl sm:text-4xl font-bold mb-4 sm:mb-6 text-white text-center">Electricity Load Forecast</h1>
+        <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4 sm:mb-6 text-white text-center">
+          Electricity Load Forecast
+        </h1>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-white">
           <div className="bg-blue-800 bg-opacity-50 p-4 rounded-lg">
             <p className="text-base sm:text-lg font-semibold mb-2">Area</p>
@@ -78,16 +92,16 @@ function ChartContent() {
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <div className="col-span-1 lg:col-span-2 border-4 border-blue-500 rounded-lg p-4 sm:p-6 md:p-10 shadow-lg">
-          <CurrentLoadChart date={selectedDate} />
+          <CurrentLoadChart date={selectedDate} data={hourlyData} />
         </div>
         <div className="border-4 border-blue-500 rounded-lg p-4 sm:p-6 shadow-lg">
-          <ShortTermForecastChart date={selectedDate} />
+          <ShortTermForecastChart date={selectedDate} data={hourlyData} />
         </div>
         <div className="border-4 border-blue-500 rounded-lg p-4 sm:p-6 shadow-lg">
-          <LongTermForecastChart date={selectedDate} />
+          <LongTermForecastChart date={selectedDate} data={hourlyData} />
         </div>
         <div className="col-span-1 lg:col-span-2 border-4 border-blue-500 rounded-lg p-4 sm:p-6 shadow-lg">
-          <AdditionalInsightsChart date={selectedDate} />
+          <AdditionalInsightsChart date={selectedDate} data={hourlyData} stats={stats} />
         </div>
       </div>
     </div>
