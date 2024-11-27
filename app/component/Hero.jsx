@@ -3,9 +3,15 @@ import React, { useState } from "react";
 import dynamic from "next/dynamic";
 import { HeroContent } from "./HeroContent";
 import { globeConfig, sampleArcs, areaCoordinates } from "./globeConfig";
+import { Loader } from "./Loader";
 
 const World = dynamic(() => import("../../components/ui/globe").then((mod) => mod.World), {
   ssr: false,
+  loading: () => (
+    <div className="w-full h-[500px] md:h-[600px] lg:h-[700px] flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <Loader />
+    </div>
+  ),
 });
 
 export function GlobeDemo() {

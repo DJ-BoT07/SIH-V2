@@ -40,8 +40,8 @@ export default function RootLayout({ children }) {
                   <Link href={"/"} className="text-white hover:text-primary hover:font-bold transition-all cursor-pointer hover:scale-110">
                     Home
                   </Link>
-                  <Link href={"/dashboard"} className="text-white hover:text-primary hover:font-bold transition-all cursor-pointer hover:scale-110">
-                    Dashboard
+                  <Link href={"/forecast"} className="text-white hover:text-primary hover:font-bold transition-all cursor-pointer hover:scale-110">
+                    Forecast
                   </Link>
                   <Link href={"/404"} className="text-white hover:text-primary hover:font-bold transition-all cursor-pointer hover:scale-110">
                     404

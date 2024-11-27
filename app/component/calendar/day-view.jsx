@@ -7,7 +7,7 @@ export function DayView({ date, events }) {
   const dayEvents = events.filter(event => isSameDay(event.date, date))
 
   return (
-    <div className="flex flex-col space-y-2 bg-black">
+    <div className="flex flex-col space-y-2 bg-[#1C1C1E]">
       {hours.map((hour) => {
         const timeString = `${hour.toString().padStart(2, '0')}:00`
         const hourEvents = dayEvents.filter(event => {
@@ -24,13 +24,13 @@ export function DayView({ date, events }) {
             transition={{ delay: hour * 0.02 }}
             className="group flex"
           >
-            <div className="w-20 py-2 text-sm text-gray-500">
+            <div className="w-20 py-2 text-sm text-[#98989D]">
               {timeString}
             </div>
             <motion.div
               className={cn(
-                "flex-1 border-l border-gray-800 pl-4 py-2",
-                "group-hover:bg-gray-800/50 transition-colors duration-200"
+                "flex-1 border-l border-[#2C2C2E] pl-4 py-2",
+                "group-hover:bg-[#2C2C2E]/50 transition-colors duration-200"
               )}
             >
               {hourEvents.map((event) => (
@@ -44,9 +44,9 @@ export function DayView({ date, events }) {
                   }}
                   className={cn(
                     "rounded px-2 py-1 mb-1 cursor-pointer",
-                    event.type === "festival" && "bg-green-500/20 text-green-500",
-                    event.type === "birthday" && "bg-purple-500/20 text-purple-500",
-                    event.type === "meeting" && "bg-blue-500/20 text-blue-500"
+                    event.type === "festival" && "bg-[#32D74B]/20 text-[#32D74B]",
+                    event.type === "birthday" && "bg-[#BF5AF2]/20 text-[#BF5AF2]",
+                    event.type === "meeting" && "bg-[#0A84FF]/20 text-[#0A84FF]"
                   )}
                 >
                   <div className="text-sm font-medium">{event.title}</div>

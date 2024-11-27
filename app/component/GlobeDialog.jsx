@@ -1,12 +1,14 @@
 import React from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
+import { format } from "date-fns";
 
-export function GlobeDialog({ setSelectedArea }) {
+export function GlobeDialog({ setSelectedArea, selectedDate }) {
   const router = useRouter();
 
   const handleClick = () => {
-    router.push('/forecast');
+    const formattedDate = selectedDate ? format(selectedDate, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd');
+    router.push(`/forecast?date=${formattedDate}`);
   };
 
   return (

@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils"
-import { addDays, format, startOfWeek } from "date-fns"
-import { motion } from "framer-motion"
+import { addDays, format, startOfWeek, isToday } from "date-fns"
+import { motion, AnimatePresence } from "framer-motion"
 
 export function CalendarGrid({ date, selectedDate, events, onDateSelect }) {
   const startDate = startOfWeek(date)
@@ -9,14 +9,14 @@ export function CalendarGrid({ date, selectedDate, events, onDateSelect }) {
   return (
     <motion.div 
       layout
-      className="grid grid-cols-7 gap-px bg-gray-800"
+      className="grid grid-cols-7 gap-px bg-[#1C1C1E]"
     >
       {weekDays.map((day) => (
         <motion.div
           key={day}
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gray-900 p-2 text-sm font-medium text-gray-400"
+          className="bg-[#2C2C2E] p-2 text-sm font-medium text-[#98989D]"
         >
           {day}
         </motion.div>
@@ -30,45 +30,55 @@ export function CalendarGrid({ date, selectedDate, events, onDateSelect }) {
         )
         const isCurrentMonth = format(currentDate, "MM") === format(date, "MM")
         const isSelected = selectedDate && format(currentDate, "yyyy-MM-dd") === format(selectedDate, "yyyy-MM-dd")
+        const isTodayDate = isToday(currentDate)
 
         return (
           <motion.div
             key={i}
             initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ 
-              delay: i * 0.01,
-              duration: 0.2,
+            animate={{ 
+              opacity: 1, 
+              scale: 1,
+              transition: {
+                type: "spring",
+                stiffness: 300,
+                damping: 30
+              }
             }}
-            whileHover={{ 
-              scale: 1.02,
-              transition: { duration: 0.2 },
-              backgroundColor: "rgba(17, 17, 17, 1)",
-              boxShadow: "0 4px 20px rgba(0, 0, 0, 0.3)",
-              zIndex: 10
-            }}
-            onClick={() => onDateSelect && onDateSelect(currentDate)}
             className={cn(
-              "relative min-h-[120px] bg-gray-900 p-2 transition-colors duration-200 cursor-pointer",
-              !isCurrentMonth && "bg-gray-900/50 text-gray-600",
-              "hover:border-blue-500/50 hover:bg-gray-800",
-              isSelected && "ring-2 ring-blue-500"
+              "relative min-h-[120px] p-2 transition-all duration-200 cursor-pointer overflow-hidden",
+              isCurrentMonth ? "bg-[#0d0d0d]" : "bg-[#1a1a1a]",
+              isSelected 
+                ? "bg-[#0A84FF]/10 ring-2 ring-[#0A84FF]" 
+                : "hover:bg-[#2C2C2E]",
+              isTodayDate && !isSelected && "ring-2 ring-[#FF453A]"
             )}
+            onClick={() => onDateSelect && onDateSelect(currentDate)}
           >
-            <motion.div 
-              className={cn(
-                "flex h-7 w-7 items-center justify-center rounded-full text-sm",
-                !isCurrentMonth ? "text-gray-600" : "font-medium",
-                dayEvents.length > 0 && "bg-blue-500/20 text-blue-500",
-                isSelected && "bg-blue-500 text-blue-500-foreground"
-              )}
-              whileHover={{
-                scale: 1.1,
-                backgroundColor: "rgba(var(--blue-500), 0.15)",
-              }}
-            >
-              {format(currentDate, "d")}
-            </motion.div>
+            <AnimatePresence mode="wait">
+              <motion.div 
+                key={`date-${isSelected}`}
+                initial={{ scale: 0.9 }}
+                animate={{ 
+                  scale: 1,
+                  transition: {
+                    type: "spring",
+                    stiffness: 500,
+                    damping: 30
+                  }
+                }}
+                exit={{ scale: 0.9 }}
+                className={cn(
+                  "flex h-7 w-7 items-center justify-center rounded-full text-sm transition-colors",
+                  isCurrentMonth ? "text-[#FFFFFF] font-medium" : "text-[#666666]",
+                  dayEvents.length > 0 && !isSelected && !isTodayDate && "bg-[#0A84FF]/20 text-[#0A84FF]",
+                  isSelected && "bg-[#0A84FF] text-white",
+                  isTodayDate && !isSelected && "bg-[#FF453A]/20 text-[#FF453A]"
+                )}
+              >
+                {format(currentDate, "d")}
+              </motion.div>
+            </AnimatePresence>
             <motion.div 
               className="mt-1 space-y-1"
               animate={{ opacity: 1 }}
@@ -80,15 +90,18 @@ export function CalendarGrid({ date, selectedDate, events, onDateSelect }) {
                   initial={{ opacity: 0, x: -10 }}
                   animate={{ opacity: 1, x: 0 }}
                   whileHover={{ 
-                    scale: 1.05,
-                    transition: { duration: 0.2 },
-                    boxShadow: "0 2px 10px rgba(0, 0, 0, 0.1)"
+                    scale: 1.02,
+                    transition: { 
+                      type: "spring",
+                      stiffness: 400,
+                      damping: 25
+                    }
                   }}
                   className={cn(
                     "cursor-pointer rounded px-1.5 py-0.5 text-xs transition-all",
-                    event.type === "festival" && "bg-green-500/20 text-green-500 hover:bg-green-500/30",
-                    event.type === "birthday" && "bg-purple-500/20 text-purple-500 hover:bg-purple-500/30",
-                    event.type === "meeting" && "bg-blue-500/20 text-blue-500 hover:bg-blue-500/30"
+                    event.type === "festival" && "bg-[#32D74B]/20 text-[#32D74B] hover:bg-[#32D74B]/30",
+                    event.type === "birthday" && "bg-[#BF5AF2]/20 text-[#BF5AF2] hover:bg-[#BF5AF2]/30",
+                    event.type === "meeting" && "bg-[#0A84FF]/20 text-[#0A84FF] hover:bg-[#0A84FF]/30"
                   )}
                 >
                   {event.time && <span className="mr-1">{event.time}</span>}

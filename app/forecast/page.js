@@ -1,113 +1,96 @@
 "use client";
-import { useState } from "react";
+
+import React, { useState, Suspense, useEffect } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { format, parse } from 'date-fns';
 import { Calendar } from "../component/calendar/calendar";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useRouter } from "next/navigation";
-import { Button } from "@/components/ui/button";
-import { format } from "date-fns";
+import { FullPageLoader } from "../component/Loader";
 
-const subAreas = {
-  "BSES Rajdhani Power Limited": [
-    "Vasant Kunj", "Saket", "Vasant Vihar", "Dwarka",
-    "Janakpuri", "Punjabi Bagh", "Hauz Khas", "Rajouri Garden"
-  ],
-  "BSES Yamuna Power Limited": [
-    "Mayur Vihar", "Laxmi Nagar", "Gandhi Nagar", "Preet Vihar",
-    "Shahdara", "Chandni Chowk", "Yamuna Vihar", "Krishna Nagar"
-  ],
-  "Tata Power Delhi Distribution Limited": [
-    "Rohini", "Pitampura", "Shalimar Bagh", "Model Town",
-    "Ashok Vihar", "Civil Lines", "Narela", "Jahangirpuri"
-  ],
-  "New Delhi Municipal Council": [
-    "Connaught Place", "Chanakyapuri", "India Gate", "Lutyens' Delhi",
-    "President's Estate", "Parliament House area"
-  ],
-};
-
-export default function ForecastPage() {
+function ForecastContent() {
   const router = useRouter();
-  const [selectedArea, setSelectedArea] = useState(null);
-  const [selectedSubArea, setSelectedSubArea] = useState(null);
-  const [selectedDate, setSelectedDate] = useState(new Date());
+  const searchParams = useSearchParams();
+  const dateString = searchParams.get('date');
+  const areaString = searchParams.get('area');
 
-  const handleAreaChange = (value) => {
-    setSelectedArea(value);
-    setSelectedSubArea(null);
-  };
+  const [selectedDate, setSelectedDate] = useState(() => {
+    if (!dateString) return new Date();
+    try {
+      return parse(dateString, 'yyyy-MM-dd', new Date());
+    } catch (error) {
+      console.error('Error parsing date:', error);
+      return new Date();
+    }
+  });
 
-  const handleSubAreaChange = (value) => {
-    setSelectedSubArea(value);
-  };
+  const [selectedArea, setSelectedArea] = useState(areaString || 'BSES Yamuna Power Limited');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const areas = [
+    "BSES Yamuna Power Limited",
+    "BSES Rajdhani Power Limited",
+    "Tata Power Delhi Distribution Limited"
+  ];
 
   const handleDateSelect = (date) => {
+    setIsLoading(true);
     setSelectedDate(date);
+    const formattedDate = format(date, 'yyyy-MM-dd');
+    router.push(`/chart?area=${encodeURIComponent(selectedArea)}&date=${formattedDate}`);
   };
 
-  const handleGenerateForecast = () => {
-    if (selectedArea && selectedSubArea && selectedDate) {
+  const handleAreaChange = (value) => {
+    setIsLoading(true);
+    setSelectedArea(value);
+    if (selectedDate) {
       const formattedDate = format(selectedDate, 'yyyy-MM-dd');
-      router.push(`/chart?area=${encodeURIComponent(selectedArea)}&subArea=${encodeURIComponent(selectedSubArea)}&date=${formattedDate}`);
+      router.push(`/chart?area=${encodeURIComponent(value)}&date=${formattedDate}`);
     }
   };
 
+  // Clean up loading state if navigation takes too long
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [selectedDate, selectedArea]);
+
   return (
-    <div className="min-h-screen bg-black">
-      <div className="container mx-auto px-4 py-8">
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-2xl font-bold text-white">Load Forecast Calendar</h1>
-          <Button 
-            variant="outline" 
-            onClick={() => router.push('/')}
-            className="text-white hover:text-black"
-          >
-            Back to Home
-          </Button>
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-blue-900">
+      {isLoading && <FullPageLoader />}
+      <div className="h-screen">
+        <h1 className="text-3xl sm:text-4xl font-bold py-4 text-white text-center">
+          Select Date and Area for Load Forecast
+        </h1>
+        
+        <div className="max-w-xs mx-auto mb-4">
+          <Select value={selectedArea} onValueChange={handleAreaChange}>
+            <SelectTrigger className="w-full bg-white/10 text-white border-white/20">
+              <SelectValue placeholder="Select area" />
+            </SelectTrigger>
+            <SelectContent>
+              {areas.map((area) => (
+                <SelectItem key={area} value={area}>
+                  {area}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
-        <div className="flex flex-col md:flex-row gap-4 mb-6">
-          <div className="flex-1">
-            <label className="text-sm font-medium mb-2 block text-left text-white">Area</label>
-            <Select onValueChange={handleAreaChange}>
-              <SelectTrigger className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-                <SelectValue placeholder="Select an area" />
-              </SelectTrigger>
-              <SelectContent>
-                {Object.keys(subAreas).map((area) => (
-                  <SelectItem key={area} value={area}>{area}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-          <div className="flex-1">
-            <label className="text-sm font-medium mb-2 block text-left text-white">Sub-Area</label>
-            <Select 
-              onValueChange={handleSubAreaChange} 
-              disabled={!selectedArea}
-            >
-              <SelectTrigger className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-                <SelectValue placeholder={selectedArea ? "Select a sub-area" : "Select an area first"} />
-              </SelectTrigger>
-              <SelectContent>
-                {selectedArea && subAreas[selectedArea].map((subArea) => (
-                  <SelectItem key={subArea} value={subArea}>{subArea}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-        <div className="bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 rounded-lg">
+
+        <div className="h-[calc(100vh-10rem)]">
           <Calendar onDateSelect={handleDateSelect} />
-        </div>
-        <div className="mt-6 flex justify-end">
-          <Button 
-            onClick={handleGenerateForecast}
-            disabled={!selectedArea || !selectedSubArea}
-            className="px-6 py-2 text-lg"
-          >
-            Generate Forecast
-          </Button>
         </div>
       </div>
     </div>
   );
-} 
+}
+
+export default function ForecastPage() {
+  return (
+    <Suspense fallback={<FullPageLoader />}>
+      <ForecastContent />
+    </Suspense>
+  );
+}

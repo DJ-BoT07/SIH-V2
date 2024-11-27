@@ -1,8 +1,10 @@
-import React from "react";
+import React, { useState } from "react";
 import { motion } from "framer-motion";
 import { GlobeDialog } from "./GlobeDialog";
 
 export function HeroContent({ setSelectedArea }) {
+  const [selectedDate, setSelectedDate] = useState(new Date());
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -18,7 +20,7 @@ export function HeroContent({ setSelectedArea }) {
         Visualize forecasted loads and explore energy consumption patterns.
       </p>
       <div className="mt-4">
-        <GlobeDialog setSelectedArea={setSelectedArea} />
+        <GlobeDialog setSelectedArea={setSelectedArea} selectedDate={selectedDate} />
         <svg
           className="w-4 h-4 sm:w-6 sm:h-6 mx-auto mt-2 animate-bounce"
           fill="none"

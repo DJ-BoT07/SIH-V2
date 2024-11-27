@@ -1,5 +1,4 @@
-import React, { useMemo, useState } from "react";
-import { Calendar } from "@/components/ui/calendar"
+import React, { useMemo, useState, useEffect } from "react";
 import {
   LineChart,
   Line,
@@ -10,11 +9,44 @@ import {
   Legend,
   ResponsiveContainer
 } from "recharts";
-import { areaCoordinates } from "@/app/component/globeConfig";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
+import { motion, AnimatePresence } from "framer-motion";
+import { useSearchParams } from 'next/navigation';
+import { parse } from 'date-fns';
 
-const generateRandomData = (date, area, subArea) => {
-  const seed = date.getTime() + area.length + subArea.length;
+const areas = [
+  "BSES Rajdhani Power Limited",
+  "BSES Yamuna Power Limited",
+  "Tata Power Delhi Distribution Limited",
+  "New Delhi Municipal Council"
+];
+
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.2,
+    }
+  }
+};
+
+const itemVariants = {
+  hidden: { y: 20, opacity: 0 },
+  visible: {
+    y: 0,
+    opacity: 1,
+    transition: {
+      type: "spring",
+      stiffness: 100,
+      damping: 12
+    }
+  }
+};
+
+const generateRandomData = (date, area) => {
+  const seed = date.getTime() + area.length;
   const random = (min, max, seed) => {
     const x = Math.sin(seed) * 10000;
     return ((x - Math.floor(x)) * (max - min) + min);
@@ -26,7 +58,6 @@ const generateRandomData = (date, area, subArea) => {
     const randomFactor = random(0.9, 1.1, seed + i);
     const solarFactor = hour >= 6 && hour <= 18 ? Math.sin((hour - 6) * Math.PI / 12) : 0;
     
-    // Adjusting the load to reflect the duck curve
     const adjustedLoad = baseLoad - (solarFactor * 8000 * random(0.8, 1.2, seed + i + 24));
 
     return {
@@ -37,86 +68,108 @@ const generateRandomData = (date, area, subArea) => {
   });
 };
 
-export default function CurrentLoadChart({ date, setDate }) {
+export default function CurrentLoadChart({ date }) {
+  const searchParams = useSearchParams();
   const [area, setArea] = useState("BSES Rajdhani Power Limited");
-  const [subArea, setSubArea] = useState("Vasant Kunj");
 
-  const newDelhiDuckCurveData = useMemo(() => generateRandomData(date, area, subArea), [date, area, subArea]);
-  
+  const newDelhiDuckCurveData = useMemo(() => generateRandomData(date, area), [date, area]);
   const averageLoad = Math.round(newDelhiDuckCurveData.reduce((sum, data) => sum + data.load, 0) / newDelhiDuckCurveData.length);
 
-  const subAreas = {
-    "BSES Rajdhani Power Limited": [
-      "Vasant Kunj", "Saket", "Vasant Vihar", "Dwarka",
-      "Janakpuri", "Punjabi Bagh", "Hauz Khas", "Rajouri Garden"
-    ],
-    "BSES Yamuna Power Limited": [
-      "Mayur Vihar", "Laxmi Nagar", "Gandhi Nagar", "Preet Vihar",
-      "Shahdara", "Chandni Chowk", "Yamuna Vihar", "Krishna Nagar"
-    ],
-    "Tata Power Delhi Distribution Limited": [
-      "Rohini", "Pitampura", "Shalimar Bagh", "Model Town",
-      "Ashok Vihar", "Civil Lines", "Narela", "Jahangirpuri"
-    ],
-    "New Delhi Municipal Council": [
-      "Connaught Place", "Chanakyapuri", "India Gate", "Lutyens' Delhi",
-      "President's Estate", "Parliament House area"
-    ],
-  };
-
   return (
-    <div className="w-full h-full">
-      <h2 className="text-center text-xl sm:text-2xl font-bold mb-2 sm:mb-4 text-white">New Delhi Electricity Load - Duck Curve Effect</h2>
-      <p className="text-center text-lg sm:text-xl font-semibold mb-2 sm:mb-4 text-white">Average Load: {averageLoad} MW</p>
-      <p className="text-center text-base sm:text-lg mb-2 sm:mb-4 text-white">Selected Date: {date.toDateString()}</p>
+    <motion.div 
+      initial="hidden"
+      animate="visible"
+      variants={containerVariants}
+      className="w-full h-full"
+    >
+      <motion.h2 
+        className="text-center text-xl sm:text-2xl font-bold mb-2 sm:mb-4 text-white"
+        variants={itemVariants}
+      >
+        New Delhi Electricity Load - Duck Curve Effect
+      </motion.h2>
+      <motion.p 
+        className="text-center text-lg sm:text-xl font-semibold mb-2 sm:mb-4 text-white"
+        variants={itemVariants}
+      >
+        Average Load: {averageLoad} MW
+      </motion.p>
       
-      <div className="flex flex-col lg:flex-row gap-4">
-        <div className="w-full lg:w-3/4">
+      <motion.div 
+        className="flex flex-col lg:flex-row gap-4"
+        variants={containerVariants}
+      >
+        <motion.div 
+          className="w-full lg:w-3/4"
+          variants={itemVariants}
+          whileHover={{ scale: 1.01 }}
+        >
           <ResponsiveContainer width="100%" height={400} minWidth={300}>
             <LineChart data={newDelhiDuckCurveData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#555" />
               <XAxis dataKey="time" stroke="#fff" />
               <YAxis stroke="#fff" />
-              <Tooltip contentStyle={{ backgroundColor: '#333', border: 'none' }} />
+              <Tooltip 
+                contentStyle={{ 
+                  backgroundColor: '#333', 
+                  border: 'none',
+                  borderRadius: '8px',
+                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+                }} 
+              />
               <Legend />
-              <Line type="monotone" dataKey="load" stroke="#8884d8" strokeWidth={3} />
-              <Line type="monotone" dataKey="solar" stroke="#ffc658" strokeWidth={2} />
+              <Line 
+                type="monotone" 
+                dataKey="load" 
+                stroke="#8884d8" 
+                strokeWidth={3}
+                dot={{ strokeWidth: 2 }}
+                activeDot={{ r: 8, strokeWidth: 0 }}
+              />
+              <Line 
+                type="monotone" 
+                dataKey="solar" 
+                stroke="#ffc658" 
+                strokeWidth={2}
+                dot={{ strokeWidth: 2 }}
+                activeDot={{ r: 6, strokeWidth: 0 }}
+              />
             </LineChart>
           </ResponsiveContainer>
-        </div>
+        </motion.div>
         
-        <div className="w-full lg:w-1/4 flex flex-col justify-center items-start">
-          <Calendar
-            mode="single"
-            selected={date}
-            onSelect={(newDate) => setDate(newDate || new Date())}
-            className="rounded-md border bg-white mb-4"
-          />
-          <div className="flex flex-col gap-2 border-2 border-white p-2 rounded-md w-full">
-            <Select onValueChange={setArea} className="mb-2">
-              <SelectTrigger>
+        <motion.div 
+          className="w-full lg:w-1/4 flex flex-col justify-center items-start"
+          variants={itemVariants}
+        >
+          <motion.div 
+            className="flex flex-col gap-2 border-2 border-white p-2 rounded-md w-full"
+            whileHover={{ scale: 1.02 }}
+          >
+            <Select onValueChange={setArea}>
+              <SelectTrigger className="transition-all duration-300 hover:bg-background/80">
                 <SelectValue placeholder="Select an area" />
               </SelectTrigger>
               <SelectContent>
-                {Object.keys(subAreas).map((area) => (
-                  <SelectItem key={area} value={area}>{area}</SelectItem>
-                ))}
+                <AnimatePresence>
+                  {areas.map((area, index) => (
+                    <motion.div
+                      key={area}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: 20 }}
+                      transition={{ delay: index * 0.1 }}
+                    >
+                      <SelectItem value={area}>{area}</SelectItem>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
               </SelectContent>
             </Select>
-            <Select onValueChange={setSubArea}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select a sub-area" />
-              </SelectTrigger>
-              <SelectContent>
-                {subAreas[area].map((subArea) => (
-                  <SelectItem key={subArea} value={subArea}>{subArea}</SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </div>
-      </div>
-    </div>
+          </motion.div>
+        </motion.div>
+      </motion.div>
+    </motion.div>
   );
 }
 
