@@ -235,7 +235,7 @@ function ResolveContent() {
           <div className="mt-6 p-4 bg-green-900/20 rounded-lg border border-green-500/30">
             <h3 className="text-lg font-semibold text-white mb-2">Total Potential Savings Analysis</h3>
             <p className="text-green-400 text-xl">
-              ₹{Math.round(totalSavings).toLocaleString()} could be saved by purchasing at today&apos;s term ahead prices
+              ₹{Math.round(totalSavings).toLocaleString()}K could be saved by purchasing at today&apos;s term ahead prices
             </p>
             <p className="text-sm text-gray-400 mt-1">
               Based on load-weighted price differences between term ahead and real time markets
