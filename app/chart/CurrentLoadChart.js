@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useRouter } from 'next/navigation';
 import {
   LineChart,
   Line,
@@ -8,10 +9,13 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
-  ReferenceLine
+  ReferenceLine,
+  ReferenceArea
 } from "recharts";
 import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
+import { format } from 'date-fns';
 
 const areas = [
   "BSES Rajdhani Power Limited",
@@ -51,82 +55,58 @@ const generateRandomData = (date, area) => {
     return ((x - Math.floor(x)) * (max - min) + min);
   };
 
-  return Array.from({ length: 24 }, (_, i) => {
-    const hour = i;
-    const baseLoad = 15000 + 5000 * Math.sin((hour - 6) * Math.PI / 12);
-    const randomFactor = random(0.9, 1.1, seed + i);
-    const solarFactor = hour >= 6 && hour <= 18 ? Math.sin((hour - 6) * Math.PI / 12) : 0;
-    
-    const adjustedLoad = baseLoad - (solarFactor * 8000 * random(0.8, 1.2, seed + i + 24));
-    const load = Math.round(adjustedLoad * randomFactor);
+  return Array.from({ length: 24 }, (_, hour) => {
+    // Duck curve characteristics
+    let baseLoad;
+    if (hour >= 0 && hour < 4) {
+      // Early morning - low demand
+      baseLoad = 10000 + random(-500, 500, seed + hour);
+    } else if (hour >= 4 && hour < 7) {
+      // Morning ramp up
+      baseLoad = 10000 + (hour - 4) * 1500 + random(-300, 300, seed + hour);
+    } else if (hour >= 7 && hour < 16) {
+      // Daytime solar generation causing "belly" of duck
+      const solarEffect = Math.sin((hour - 7) * Math.PI / 9) * 3000;
+      baseLoad = 14500 - solarEffect + random(-500, 500, seed + hour);
+    } else if (hour >= 16 && hour < 20) {
+      // Evening ramp (neck of the duck)
+      const rampSeverity = (hour - 16) / 4; // 0 to 1
+      baseLoad = 14000 + rampSeverity * 3000 + random(-300, 300, seed + hour);
+    } else {
+      // Late evening decline
+      const decline = (hour - 20) / 4; // 0 to 1
+      baseLoad = 17000 - decline * 7000 + random(-500, 500, seed + hour);
+    }
+
+    // Solar generation
+    const solarHour = hour >= 6 && hour <= 18;
+    const solarPeak = Math.sin((hour - 6) * Math.PI / 12);
+    const solarOutput = solarHour ? 6000 * solarPeak * random(0.8, 1.2, seed + hour + 24) : 0;
+
+    // Final load calculation
+    const load = Math.round(baseLoad);
 
     return {
       time: `${hour}:00`,
       load,
-      solar: Math.round(8000 * solarFactor * random(0.8, 1.2, seed + i + 24)),
+      solar: Math.round(solarOutput),
       isOverload: load > 15000
     };
   });
 };
 
-const CustomizedDot = (props) => {
-  const { cx, cy, payload } = props;
-  
-  if (payload.isOverload) {
-    return (
-      <svg x={cx - 5} y={cy - 5} width={10} height={10}>
-        <circle
-          cx="5"
-          cy="5"
-          r="4"
-          fill="#ff4d4f"
-          stroke="#fff"
-        />
-      </svg>
-    );
-  }
-
-  return null;
-};
-
-const CustomizedXAxisTick = (props) => {
-  const { x, y, payload, data } = props;
-  const timeData = data.find(d => d.time === payload.value);
-  const isOverload = timeData?.isOverload;
-
-  return (
-    <g transform={`translate(${x},${y})`}>
-      <text
-        x={0}
-        y={0}
-        dy={16}
-        textAnchor="middle"
-        fill={isOverload ? "#ff4d4f" : "#fff"}
-        className={isOverload ? "font-bold" : ""}
-      >
-        {payload.value}
-      </text>
-      {isOverload && (
-        <path
-          d="M-20,25 L20,25"
-          stroke="#ff4d4f"
-          strokeWidth="2"
-        />
-      )}
-    </g>
-  );
-};
-
 export default function CurrentLoadChart({ date }) {
+  const router = useRouter();
   const [area, setArea] = useState("BSES Rajdhani Power Limited");
 
   const newDelhiDuckCurveData = useMemo(() => generateRandomData(date, area), [date, area]);
   const averageLoad = Math.round(newDelhiDuckCurveData.reduce((sum, data) => sum + data.load, 0) / newDelhiDuckCurveData.length);
-  const peakLoad = Math.max(...newDelhiDuckCurveData.map(data => data.load));
-  const peakTimes = newDelhiDuckCurveData
-    .filter(data => data.load > 15000)
-    .map(data => data.time)
-    .join(", ");
+  const overloadTimes = newDelhiDuckCurveData.filter(data => data.isOverload);
+
+  const handleResolve = (time, load) => {
+    const formattedDate = format(date, 'yyyy-MM-dd');
+    router.push(`/resolve?date=${formattedDate}&time=${time}&load=${load}`);
+  };
 
   return (
     <motion.div 
@@ -141,28 +121,38 @@ export default function CurrentLoadChart({ date }) {
       >
         New Delhi Electricity Load - Duck Curve Effect
       </motion.h2>
-      <motion.div className="text-center mb-4">
-        <motion.p 
-          className="text-lg sm:text-xl font-semibold text-white"
+      <motion.p 
+        className="text-center text-lg sm:text-xl font-semibold mb-2 sm:mb-4 text-white"
+        variants={itemVariants}
+      >
+        Average Load: {averageLoad} MW
+      </motion.p>
+      
+      {overloadTimes.length > 0 && (
+        <motion.div 
+          className="mb-4 p-4 border-2 border-red-500 rounded-lg"
           variants={itemVariants}
         >
-          Average Load: {averageLoad} MW
-        </motion.p>
-        <motion.p 
-          className="text-lg sm:text-xl font-semibold text-white"
-          variants={itemVariants}
-        >
-          Peak Load: {peakLoad} MW
-        </motion.p>
-        {peakTimes && (
-          <motion.p 
-            className="text-base text-red-400 mt-1"
-            variants={itemVariants}
-          >
-            Load exceeded 15000 MW at: {peakTimes}
-          </motion.p>
-        )}
-      </motion.div>
+          <h3 className="text-lg font-bold text-white mb-2">Peak Load Times</h3>
+          <div className="grid gap-2">
+            {overloadTimes.map((data, index) => (
+              <div key={index} className="flex items-center justify-between bg-red-500/10 p-2 rounded">
+                <div>
+                  <span className="text-white font-medium">{data.time}</span>
+                  <span className="ml-4 text-red-400">{data.load} MW</span>
+                </div>
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  onClick={() => handleResolve(data.time, data.load)}
+                >
+                  Resolve
+                </Button>
+              </div>
+            ))}
+          </div>
+        </motion.div>
+      )}
       
       <motion.div 
         className="flex flex-col lg:flex-row gap-4"
@@ -176,55 +166,54 @@ export default function CurrentLoadChart({ date }) {
           <ResponsiveContainer width="100%" height={400} minWidth={300}>
             <LineChart data={newDelhiDuckCurveData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#555" />
-              <XAxis 
-                dataKey="time" 
-                tick={<CustomizedXAxisTick data={newDelhiDuckCurveData} />}
-                height={60}
-              />
-              <YAxis stroke="#fff" />
+              <XAxis dataKey="time" stroke="#fff" />
+              <YAxis yAxisId="left" stroke="#fff" />
+              <YAxis yAxisId="right" orientation="right" stroke="#fff" />
               <Tooltip 
                 contentStyle={{ 
-                  backgroundColor: '#333 ', 
+                  backgroundColor: '#333', 
                   border: 'none',
                   borderRadius: '8px',
                   boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-                }}
-                formatter={(value, name) => {
-                  if (name === 'load' && value > 15000) {
-                    return [value + ' MW (Overload)', name];
-                  }
-                  return [value + (name === 'load' ? ' MW' : ' W'), name];
-                }}
+                }} 
               />
               <Legend />
-              {newDelhiDuckCurveData.map((entry, index) => (
-                entry.isOverload && (
-                  <ReferenceLine
-                    key={index}
-                    x={entry.time}
-                    stroke="#ff4d4f"
-                    strokeDasharray="3 3"
-                    label={{
-                      value: "Overload",
-                      fill: "#ff4d4f",
-                      position: "top"
-                    }}
-                  />
-                )
+              <ReferenceLine y={15000} yAxisId="left" stroke="#ff4d4f" strokeDasharray="3 3" label={{ value: "Threshold (15000 MW)", fill: "#ff4d4f", position: "right" }} />
+              {overloadTimes.map((data, index) => (
+                <ReferenceArea
+                  key={index}
+                  x1={data.time}
+                  x2={data.time}
+                  yAxisId="left"
+                  fill="#ff4d4f"
+                  fillOpacity={0.1}
+                />
               ))}
               <Line 
                 type="monotone" 
                 dataKey="load" 
-                name="Load"
+                yAxisId="left"
+                name="Load (MW)"
                 stroke="#8884d8" 
                 strokeWidth={3}
-                dot={<CustomizedDot />}
+                dot={(props) => {
+                  const { cx, cy, payload } = props;
+                  if (payload.isOverload) {
+                    return (
+                      <svg x={cx - 5} y={cy - 5} width={10} height={10}>
+                        <circle cx="5" cy="5" r="4" fill="#ff4d4f" stroke="#fff" />
+                      </svg>
+                    );
+                  }
+                  return null;
+                }}
                 activeDot={{ r: 8, strokeWidth: 0 }}
               />
               <Line 
                 type="monotone" 
                 dataKey="solar" 
-                name="Solar Generation"
+                yAxisId="right"
+                name="Solar Generation (W)"
                 stroke="#ffc658" 
                 strokeWidth={2}
                 dot={{ strokeWidth: 2 }}

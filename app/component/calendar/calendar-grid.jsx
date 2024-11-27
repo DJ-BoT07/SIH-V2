@@ -1,8 +1,8 @@
-import { cn } from "@/lib/utils"
 import { addDays, format, startOfWeek, isToday } from "date-fns"
 import { motion, AnimatePresence } from "framer-motion"
+import { cn } from "@/lib/utils"
 
-export function CalendarGrid({ date, selectedDate, events, onDateSelect }) {
+export function CalendarGrid({ date, selectedDate, events = [], onDateSelect }) {
   const startDate = startOfWeek(date)
   const weekDays = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
 

@@ -87,15 +87,22 @@ export function Calendar({ onDateSelect }) {
   }
 
   const renderView = () => {
+    const viewProps = {
+      date: currentDate,
+      selectedDate,
+      events: sampleEvents,
+      onDateSelect: handleDateSelect
+    };
+
     switch (view) {
       case "day":
-        return <DayView date={currentDate} selectedDate={selectedDate} events={sampleEvents} onDateSelect={handleDateSelect} />
+        return <DayView {...viewProps} />
       case "week":
-        return <WeekView date={currentDate} selectedDate={selectedDate} events={sampleEvents} onDateSelect={handleDateSelect} />
+        return <WeekView {...viewProps} />
       case "month":
-        return <CalendarGrid date={currentDate} selectedDate={selectedDate} events={sampleEvents} onDateSelect={handleDateSelect} />
+        return <CalendarGrid {...viewProps} />
       case "year":
-        return <YearView date={currentDate} selectedDate={selectedDate} events={sampleEvents} onDateSelect={handleDateSelect} />
+        return <YearView {...viewProps} />
       default:
         return null
     }
