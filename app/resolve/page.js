@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { format, parse, differenceInDays } from 'date-fns';
 import {
@@ -25,7 +25,7 @@ export default function ResolvePage() {
   const PEAK_THRESHOLD = 15000; // MW
 
   // Generate price data for 24 hours using deterministic values
-  const generatePriceData = () => {
+  const generatePriceData = useCallback(() => {
     const data = [];
     for (let hour = 0; hour < 24; hour++) {
       // Base load calculation with peak hours - using deterministic pattern
@@ -54,13 +54,13 @@ export default function ResolvePage() {
       });
     }
     return data;
-  };
+  }, [daysToTarget]); // Include daysToTarget in dependencies
 
   // Use useEffect to set state after initial render
   const [priceData, setPriceData] = useState([]);
   useEffect(() => {
     setPriceData(generatePriceData());
-  }, [dateString]); // Regenerate when date changes
+  }, [generatePriceData]); // Include generatePriceData in dependencies
 
   // Calculate total potential savings
   const totalSavings = priceData.reduce((total, slot) => {
@@ -80,7 +80,7 @@ export default function ResolvePage() {
           Market Price Analysis
         </h1>
         <div className="text-center text-lg text-white mb-8">
-          Comparing today's Term Ahead Price with expected Real Time Price for {format(targetDate, 'MMMM d, yyyy')}
+          Comparing today&apos;s Term Ahead Price with expected Real Time Price for {format(targetDate, 'MMMM d, yyyy')}
           <div className="text-sm text-gray-400 mt-1">
             {daysToTarget} days difference
           </div>
@@ -89,7 +89,7 @@ export default function ResolvePage() {
         {/* Summary Cards */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           <div className="bg-black/30 backdrop-blur-sm rounded-lg p-6 border border-blue-500/30">
-            <h3 className="text-lg font-semibold text-white mb-2">Today's Term Ahead Price</h3>
+            <h3 className="text-lg font-semibold text-white mb-2">Today&apos;s Term Ahead Price</h3>
             <p className="text-2xl text-green-400">₹{averages.termAhead}/MW</p>
             <p className="text-sm text-gray-400 mt-1">{format(today, 'MMM d, yyyy')}</p>
           </div>
@@ -235,7 +235,7 @@ export default function ResolvePage() {
           <div className="mt-6 p-4 bg-green-900/20 rounded-lg border border-green-500/30">
             <h3 className="text-lg font-semibold text-white mb-2">Total Potential Savings Analysis</h3>
             <p className="text-green-400 text-xl">
-              ₹{Math.round(totalSavings).toLocaleString()} could be saved by purchasing at today's term ahead prices
+              ₹{Math.round(totalSavings).toLocaleString()} could be saved by purchasing at today&apos;s term ahead prices
             </p>
             <p className="text-sm text-gray-400 mt-1">
               Based on load-weighted price differences between term ahead and real time markets
