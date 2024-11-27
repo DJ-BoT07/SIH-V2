@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { format, parse, differenceInDays } from 'date-fns';
 import {
@@ -16,7 +16,7 @@ import {
   ReferenceLine
 } from 'recharts';
 
-export default function ResolvePage() {
+function ResolveContent() {
   const searchParams = useSearchParams();
   const dateString = searchParams.get('date');
   const targetDate = dateString ? parse(dateString, 'yyyy-MM-dd', new Date()) : new Date();
@@ -244,5 +244,26 @@ export default function ResolvePage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Loading component
+function LoadingState() {
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-blue-900 p-6 flex items-center justify-center">
+      <div className="bg-black/30 backdrop-blur-sm rounded-lg p-8 text-white text-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white mx-auto mb-4"></div>
+        <p className="text-lg">Loading market analysis...</p>
+      </div>
+    </div>
+  );
+}
+
+// Main export
+export default function ResolvePage() {
+  return (
+    <Suspense fallback={<LoadingState />}>
+      <ResolveContent />
+    </Suspense>
   );
 } 
