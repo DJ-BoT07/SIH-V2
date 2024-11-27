@@ -1,253 +1,248 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { format, parse } from 'date-fns';
-import { motion } from 'framer-motion';
+import { format, parse, differenceInDays } from 'date-fns';
 import {
-  LineChart,
+  ComposedChart,
   Line,
+  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   Legend,
   ResponsiveContainer,
-  ReferenceArea
-} from "recharts";
-
-// Function to determine if a time slot needs slot-wise pricing
-const isSlotWiseNeeded = (demand, baseThreshold = 15000) => {
-  return demand > baseThreshold;
-};
-
-// Function to calculate RTC and slot-wise prices
-const calculatePrices = (demand, hour) => {
-  const baseRTCPrice = 4; // Base RTC price per unit
-  
-  // Determine time-based multiplier
-  let timeMultiplier = 1;
-  if (hour >= 6 && hour < 10) timeMultiplier = 1.2; // Morning peak
-  if (hour >= 18 && hour < 22) timeMultiplier = 1.3; // Evening peak
-  if (hour >= 0 && hour < 6) timeMultiplier = 0.8;  // Night discount
-
-  // RTC Price with time consideration
-  const rtcPrice = baseRTCPrice * timeMultiplier;
-
-  // Slot-wise pricing for high demand periods
-  const slotPrice = isSlotWiseNeeded(demand) 
-    ? baseRTCPrice * (1 + (demand - 15000) / 10000) * timeMultiplier
-    : null;
-
-  return {
-    rtcPrice: Math.round(rtcPrice * 100) / 100,
-    slotPrice: slotPrice ? Math.round(slotPrice * 100) / 100 : null
-  };
-};
-
-// Function to generate optimal buying slots
-const generateOptimalSlots = (date, peakLoad) => {
-  const seed = date.getTime();
-  const random = (min, max, seed) => {
-    const x = Math.sin(seed) * 10000;
-    return ((x - Math.floor(x)) * (max - min) + min);
-  };
-
-  // Generate 24-hour data with prices and demand
-  const hourlyData = Array.from({ length: 24 }, (_, hour) => {
-    const basePrice = 5 + 2 * Math.sin((hour - 6) * Math.PI / 12);
-    const demand = peakLoad * random(0.7, 1.1, seed + hour + 24);
-    const { rtcPrice, slotPrice } = calculatePrices(demand, hour);
-    
-    const recommendedPrice = slotPrice || rtcPrice;
-    const pricingType = slotPrice ? 'Slot-wise' : 'RTC';
-    
-    return {
-      hour: `${hour}:00`,
-      demand: Math.round(demand),
-      rtcPrice,
-      slotPrice,
-      recommendedPrice,
-      pricingType,
-      isOptimal: recommendedPrice < basePrice
-    };
-  });
-
-  return hourlyData;
-};
-
-// Calculate potential savings
-const calculateSavings = (slots) => {
-  const rtcTotal = slots.reduce((sum, slot) => sum + slot.rtcPrice, 0);
-  const optimalTotal = slots.reduce((sum, slot) => sum + slot.recommendedPrice, 0);
-  const potentialSavings = (rtcTotal - optimalTotal) * 1000; // Assuming 1000 units per slot
-  return Math.round(potentialSavings * 100) / 100;
-};
+  ReferenceLine
+} from 'recharts';
 
 export default function ResolvePage() {
   const searchParams = useSearchParams();
   const dateString = searchParams.get('date');
-  const loadString = searchParams.get('load');
-  const timeString = searchParams.get('time');
-  
-  const [slots, setSlots] = useState([]);
-  const [savings, setSavings] = useState(0);
+  const targetDate = dateString ? parse(dateString, 'yyyy-MM-dd', new Date()) : new Date();
+  const today = new Date();
+  const daysToTarget = differenceInDays(targetDate, today);
+  const PEAK_THRESHOLD = 15000; // MW
 
-  useEffect(() => {
-    if (dateString && loadString) {
-      const date = parse(dateString, 'yyyy-MM-dd', new Date());
-      const load = parseFloat(loadString);
-      const optimalSlots = generateOptimalSlots(date, load);
-      setSlots(optimalSlots);
-      setSavings(calculateSavings(optimalSlots));
+  // Generate price data for 24 hours using deterministic values
+  const generatePriceData = () => {
+    const data = [];
+    for (let hour = 0; hour < 24; hour++) {
+      // Base load calculation with peak hours - using deterministic pattern
+      const isHighDemand = (hour >= 9 && hour <= 12) || (hour >= 18 && hour <= 21);
+      const timeBasedLoad = 13000 + Math.sin(hour * Math.PI / 12) * 3000;
+      const baseLoad = isHighDemand ? 
+        timeBasedLoad + 2000 : // Peak hours
+        timeBasedLoad;         // Normal hours
+      
+      // Base price calculation based on load - deterministic
+      const basePrice = 3 + (baseLoad > PEAK_THRESHOLD ? 2 : 0) + Math.sin(hour * Math.PI / 12);
+      
+      // Today's term ahead price - deterministic
+      const termAheadPrice = Number((basePrice * 0.95).toFixed(2));
+      
+      // Future real time price - deterministic increase based on days
+      const futureFactor = 1 + (daysToTarget * 0.1); // 10% increase per day
+      const realTimePrice = Number((termAheadPrice * futureFactor).toFixed(2));
+      
+      data.push({
+        timeSlot: `${hour.toString().padStart(2, '0')}:00`,
+        load: Math.round(baseLoad),
+        termAheadPrice,
+        realTimePrice,
+        saving: Number((realTimePrice - termAheadPrice).toFixed(2))
+      });
     }
-  }, [dateString, loadString]);
+    return data;
+  };
+
+  // Use useEffect to set state after initial render
+  const [priceData, setPriceData] = useState([]);
+  useEffect(() => {
+    setPriceData(generatePriceData());
+  }, [dateString]); // Regenerate when date changes
+
+  // Calculate total potential savings
+  const totalSavings = priceData.reduce((total, slot) => {
+    return total + (slot.saving * (slot.load / 1000)); // Savings per MWh * GWh
+  }, 0);
+
+  // Calculate averages
+  const averages = {
+    termAhead: Number((priceData.reduce((sum, item) => sum + item.termAheadPrice, 0) / 24).toFixed(2)),
+    realTime: Number((priceData.reduce((sum, item) => sum + item.realTimePrice, 0) / 24).toFixed(2))
+  };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-blue-900 p-4 sm:p-6 md:p-8">
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="max-w-7xl mx-auto"
-      >
-        <h1 className="text-3xl sm:text-4xl font-bold mb-6 text-white text-center">
-          Optimal Electricity Buying Strategy
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 to-blue-900 p-6">
+      <div className="max-w-7xl mx-auto">
+        <h1 className="text-3xl font-bold text-white mb-8 text-center">
+          Market Price Analysis
         </h1>
-        
-        <div className="grid gap-6">
-          {/* Summary Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              className="bg-black/30 p-6 rounded-lg backdrop-blur-sm border-2 border-blue-500"
-            >
-              <h3 className="text-lg font-semibold text-white mb-2">Date</h3>
-              <p className="text-2xl text-blue-400">
-                {dateString ? format(parse(dateString, 'yyyy-MM-dd', new Date()), 'MMM dd, yyyy') : '-'}
-              </p>
-            </motion.div>
-            
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1 }}
-              className="bg-black/30 p-6 rounded-lg backdrop-blur-sm border-2 border-red-500"
-            >
-              <h3 className="text-lg font-semibold text-white mb-2">Peak Time</h3>
-              <p className="text-2xl text-red-400">{timeString || '-'}</p>
-            </motion.div>
-            
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
-              className="bg-black/30 p-6 rounded-lg backdrop-blur-sm border-2 border-red-500"
-            >
-              <h3 className="text-lg font-semibold text-white mb-2">Peak Load</h3>
-              <p className="text-2xl text-red-400">{loadString} MW</p>
-            </motion.div>
-            
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.3 }}
-              className="bg-black/30 p-6 rounded-lg backdrop-blur-sm border-2 border-green-500"
-            >
-              <h3 className="text-lg font-semibold text-white mb-2">Potential Savings</h3>
-              <p className="text-2xl text-green-400">₹{savings.toLocaleString()}</p>
-            </motion.div>
+        <div className="text-center text-lg text-white mb-8">
+          Comparing today's Term Ahead Price with expected Real Time Price for {format(targetDate, 'MMMM d, yyyy')}
+          <div className="text-sm text-gray-400 mt-1">
+            {daysToTarget} days difference
+          </div>
+        </div>
+
+        {/* Summary Cards */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div className="bg-black/30 backdrop-blur-sm rounded-lg p-6 border border-blue-500/30">
+            <h3 className="text-lg font-semibold text-white mb-2">Today's Term Ahead Price</h3>
+            <p className="text-2xl text-green-400">₹{averages.termAhead}/MW</p>
+            <p className="text-sm text-gray-400 mt-1">{format(today, 'MMM d, yyyy')}</p>
+          </div>
+          <div className="bg-black/30 backdrop-blur-sm rounded-lg p-6 border border-red-500/30">
+            <h3 className="text-lg font-semibold text-white mb-2">Future Real Time Price</h3>
+            <p className="text-2xl text-red-400">₹{averages.realTime}/MW</p>
+            <p className="text-sm text-gray-400 mt-1">{format(targetDate, 'MMM d, yyyy')}</p>
+          </div>
+          <div className="bg-black/30 backdrop-blur-sm rounded-lg p-6 border border-yellow-500/30">
+            <h3 className="text-lg font-semibold text-white mb-2">Expected Price Increase</h3>
+            <p className="text-2xl text-yellow-400">
+              {((averages.realTime / averages.termAhead - 1) * 100).toFixed(1)}%
+            </p>
+            <p className="text-sm text-gray-400 mt-1">Over {daysToTarget} days</p>
+          </div>
+          <div className="bg-black/30 backdrop-blur-sm rounded-lg p-6 border border-green-500/30">
+            <h3 className="text-lg font-semibold text-white mb-2">Total Potential Savings</h3>
+            <p className="text-2xl text-green-400">₹{Math.round(totalSavings).toLocaleString()}</p>
+            <p className="text-sm text-gray-400 mt-1">By buying term ahead</p>
+          </div>
+        </div>
+
+        {/* Price Comparison Graph */}
+        <div className="bg-black/30 backdrop-blur-sm rounded-lg p-6 mb-8 border border-blue-500/30">
+          <h2 className="text-xl font-semibold text-white mb-4">Price Comparison</h2>
+          <div className="h-[400px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <ComposedChart data={priceData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#555" />
+                <XAxis 
+                  dataKey="timeSlot" 
+                  stroke="#fff"
+                  label={{ 
+                    value: 'Time Slot', 
+                    position: 'insideBottom', 
+                    offset: -10,
+                    fill: '#fff'
+                  }}
+                />
+                <YAxis 
+                  yAxisId="left"
+                  stroke="#fff"
+                  label={{ 
+                    value: 'Price (₹/MW)', 
+                    angle: -90, 
+                    position: 'insideLeft',
+                    fill: '#fff'
+                  }}
+                />
+                <YAxis 
+                  yAxisId="right"
+                  orientation="right"
+                  stroke="#fff"
+                  label={{ 
+                    value: 'Load (MW)', 
+                    angle: 90, 
+                    position: 'insideRight',
+                    fill: '#fff'
+                  }}
+                />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: '#1a1a1a', 
+                    border: '1px solid #333',
+                    borderRadius: '4px'
+                  }}
+                  formatter={(value, name) => {
+                    if (name === 'load') return [`${value.toLocaleString()} MW`, 'Load'];
+                    return [`₹${value}`, name.includes('Term') ? 'Term Ahead' : 'Real Time'];
+                  }}
+                />
+                <Legend />
+                <ReferenceLine yAxisId="right" y={PEAK_THRESHOLD} stroke="#ef4444" strokeDasharray="3 3" label={{ value: 'Peak Threshold', position: 'right', fill: '#ef4444' }} />
+                <Area
+                  yAxisId="right"
+                  type="monotone"
+                  dataKey="load"
+                  fill="#3b82f6"
+                  stroke="#3b82f6"
+                  fillOpacity={0.3}
+                  name="Load"
+                />
+                <Line 
+                  yAxisId="left"
+                  type="monotone" 
+                  dataKey="termAheadPrice" 
+                  stroke="#4ade80" 
+                  strokeWidth={2}
+                  name={`Term Ahead Price (${format(today, 'MMM d')})`}
+                />
+                <Line 
+                  yAxisId="left"
+                  type="monotone" 
+                  dataKey="realTimePrice" 
+                  stroke="#f87171" 
+                  strokeWidth={2}
+                  name={`Real Time Price (${format(targetDate, 'MMM d')})`}
+                />
+              </ComposedChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+
+        {/* Price Details Table */}
+        <div className="bg-black/30 backdrop-blur-sm rounded-lg p-6 border border-blue-500/30">
+          <h2 className="text-xl font-semibold text-white mb-4">Market Price Details</h2>
+          <div className="overflow-x-auto">
+            <table className="w-full text-white">
+              <thead>
+                <tr className="border-b border-blue-500/30">
+                  <th className="py-3 px-4 text-left">Time Slot</th>
+                  <th className="py-3 px-4 text-left">Load (MW)</th>
+                  <th className="py-3 px-4 text-left">Term Ahead Price (₹/MW)<br/><span className="text-sm text-gray-400">{format(today, 'MMM d')}</span></th>
+                  <th className="py-3 px-4 text-left">Real Time Price (₹/MW)<br/><span className="text-sm text-gray-400">{format(targetDate, 'MMM d')}</span></th>
+                  <th className="py-3 px-4 text-left">Potential Saving</th>
+                </tr>
+              </thead>
+              <tbody>
+                {priceData.map((slot) => (
+                  <tr 
+                    key={slot.timeSlot}
+                    className={`
+                      border-b border-blue-500/10 hover:bg-blue-500/10
+                      ${slot.load > PEAK_THRESHOLD ? 'bg-red-900/20' : ''}
+                    `}
+                  >
+                    <td className="py-3 px-4">{slot.timeSlot}</td>
+                    <td className={`py-3 px-4 ${slot.load > PEAK_THRESHOLD ? 'text-red-400 font-semibold' : ''}`}>
+                      {slot.load.toLocaleString()}
+                    </td>
+                    <td className="py-3 px-4 text-green-400">{slot.termAheadPrice}</td>
+                    <td className="py-3 px-4 text-red-400">{slot.realTimePrice}</td>
+                    <td className="py-3 px-4 text-yellow-400">
+                      ₹{((slot.saving * slot.load) / 1000).toFixed(2)}K
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
 
-          {/* Price and Demand Chart */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-            className="bg-black/30 p-6 rounded-lg backdrop-blur-sm border-2 border-blue-500"
-          >
-            <h3 className="text-xl font-bold text-white mb-4">Price and Demand Analysis</h3>
-            <div className="h-[400px]">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart data={slots}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#555" />
-                  <XAxis dataKey="hour" stroke="#fff" />
-                  <YAxis yAxisId="left" stroke="#fff" />
-                  <YAxis yAxisId="right" orientation="right" stroke="#fff" />
-                  <Tooltip 
-                    contentStyle={{ 
-                      backgroundColor: '#333',
-                      border: 'none',
-                      borderRadius: '8px'
-                    }}
-                  />
-                  <Legend />
-                  <Line 
-                    yAxisId="left"
-                    type="monotone" 
-                    dataKey="rtcPrice" 
-                    stroke="#8884d8" 
-                    name="RTC Price (₹/unit)"
-                  />
-                  <Line 
-                    yAxisId="left"
-                    type="monotone" 
-                    dataKey="slotPrice" 
-                    stroke="#ff4d4f" 
-                    name="Slot Price (₹/unit)"
-                  />
-                  <Line 
-                    yAxisId="right"
-                    type="monotone" 
-                    dataKey="demand" 
-                    stroke="#82ca9d" 
-                    name="Demand (MW)"
-                  />
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </motion.div>
-
-          {/* Optimal Slots List */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4 }}
-            className="bg-black/30 p-6 rounded-lg backdrop-blur-sm border-2 border-green-500"
-          >
-            <h3 className="text-xl font-bold text-white mb-4">Recommended Buying Strategy</h3>
-            <div className="grid gap-2">
-              {slots.map((slot, index) => (
-                <div 
-                  key={index}
-                  className={`flex items-center justify-between p-3 rounded-lg ${
-                    slot.pricingType === 'Slot-wise' 
-                      ? 'bg-red-500/10' 
-                      : 'bg-blue-500/10'
-                  }`}
-                >
-                  <div>
-                    <span className="text-white font-medium">{slot.hour}</span>
-                    <span className={`ml-4 ${
-                      slot.pricingType === 'Slot-wise' 
-                        ? 'text-red-400' 
-                        : 'text-blue-400'
-                    }`}>
-                      ₹{slot.recommendedPrice}/unit
-                    </span>
-                    <span className="ml-4 text-gray-400">
-                      ({slot.pricingType})
-                    </span>
-                  </div>
-                  <div className="text-green-400">
-                    {slot.demand} MW
-                  </div>
-                </div>
-              ))}
-            </div>
-          </motion.div>
+          {/* Total Savings Summary */}
+          <div className="mt-6 p-4 bg-green-900/20 rounded-lg border border-green-500/30">
+            <h3 className="text-lg font-semibold text-white mb-2">Total Potential Savings Analysis</h3>
+            <p className="text-green-400 text-xl">
+              ₹{Math.round(totalSavings).toLocaleString()} could be saved by purchasing at today's term ahead prices
+            </p>
+            <p className="text-sm text-gray-400 mt-1">
+              Based on load-weighted price differences between term ahead and real time markets
+            </p>
+          </div>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 } 
