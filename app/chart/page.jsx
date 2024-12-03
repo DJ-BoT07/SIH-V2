@@ -194,7 +194,7 @@ function ChartContent() {
         </div>
 
         <div id="additional-insights" className="bg-black/30 backdrop-blur-sm rounded-lg p-4 sm:p-6 shadow-xl border border-blue-500/30 scroll-mt-20">
-          <AdditionalInsightsChart />
+          <AdditionalInsightsChart   />
         </div>
       </div>
     </div>
