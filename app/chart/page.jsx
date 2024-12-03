@@ -39,7 +39,6 @@ const AdditionalInsightsChart = dynamic(() => import('./AdditionalInsightsChart'
 function ChartContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const area = searchParams.get('area');
   const dateString = searchParams.get('date');
   const [isLoading, setIsLoading] = useState(false);
   const [showInsights, setShowInsights] = useState(false);
@@ -111,67 +110,61 @@ function ChartContent() {
           <h1 className="text-2xl sm:text-3xl md:text-4xl font-bold mb-6 text-white text-center">
             Electricity Load Forecast
           </h1>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            <div className="bg-blue-500/20 backdrop-blur-sm p-4 rounded-lg border border-blue-500/30">
-              <p className="text-base sm:text-lg font-semibold mb-2 text-blue-200">Area</p>
-              <p className="text-lg sm:text-xl text-white">{area || 'Not specified'}</p>
-            </div>
-            <div className="bg-blue-500/20 backdrop-blur-sm p-4 rounded-lg border border-blue-500/30">
-              <p className="text-base sm:text-lg font-semibold mb-2 text-blue-200">Selected Date</p>
-              <p className="text-lg sm:text-xl text-white mb-4">{formattedDate}</p>
-              <div className="flex justify-center gap-4 mt-2">
-                <Dialog onOpenChange={handleDialogChange}>
-                  <DialogTrigger asChild>
-                    <Button variant="outline" className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg transition-all duration-200 transform hover:scale-105 font-semibold shadow-lg flex items-center gap-2">
-                      <span className="material-icons text-xl">insights</span>
-                      AI Analysis
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[700px] bg-gray-900/95 backdrop-blur-md border border-blue-500/30 shadow-2xl max-h-[80vh] overflow-hidden">
-                    <DialogHeader>
-                      <DialogTitle className="text-2xl font-bold text-white mb-2">
-                        AI Insights for {formattedDate}
-                      </DialogTitle>
-                      <DialogDescription className="text-blue-200">
-                        Detailed analysis of electricity load patterns and trends
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div 
-                      id="insights-content" 
-                      className="mt-4 p-4 bg-black/20 rounded-lg overflow-y-auto custom-scrollbar"
-                    >
-                      <DataInsights 
-                        data={{
-                          hourlyData,
-                          stats,
-                          date: format(selectedDate, 'MMMM d, yyyy')
-                        }}
-                        type="general"
-                      />
-                    </div>
-                    <DialogFooter className="mt-6">
-                      <DialogClose asChild>
-                        <Button variant="outline" className="bg-blue-500/20 hover:bg-blue-500/30 text-white border border-blue-500/50">
-                          Close
-                        </Button>
-                      </DialogClose>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-                <div className="flex gap-2">
-                  <Button 
-                    onClick={() => scrollToSection('current-load')}
-                    className="bg-blue-500/20 hover:bg-blue-500/30 text-white"
-                  >
-                    Current Load
+          <div className="bg-blue-500/20 backdrop-blur-sm p-4 rounded-lg border border-blue-500/30">
+            <p className="text-base sm:text-lg font-semibold mb-2 text-blue-200">Selected Date</p>
+            <p className="text-lg sm:text-xl text-white mb-4">{formattedDate}</p>
+            <div className="flex justify-center gap-4 mt-2">
+              <Dialog onOpenChange={handleDialogChange}>
+                <DialogTrigger asChild>
+                  <Button variant="outline" className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg transition-all duration-200 transform hover:scale-105 font-semibold shadow-lg flex items-center gap-2">
+                    <span className="material-icons text-xl">insights</span>
+                    AI Analysis
                   </Button>
-                  <Button 
-                    onClick={() => scrollToSection('forecasts')}
-                    className="bg-blue-500/20 hover:bg-blue-500/30 text-white"
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[700px] bg-gray-900/95 backdrop-blur-md border border-blue-500/30 shadow-2xl max-h-[80vh] overflow-hidden">
+                  <DialogHeader>
+                    <DialogTitle className="text-2xl font-bold text-white mb-2">
+                      AI Insights for {formattedDate}
+                    </DialogTitle>
+                    <DialogDescription className="text-blue-200">
+                      Detailed analysis of electricity load patterns and trends
+                    </DialogDescription>
+                  </DialogHeader>
+                  <div 
+                    id="insights-content" 
+                    className="mt-4 p-4 bg-black/20 rounded-lg overflow-y-auto custom-scrollbar"
                   >
-                    Forecasts
-                  </Button>
-                </div>
+                    <DataInsights 
+                      data={{
+                        hourlyData,
+                        stats,
+                        date: format(selectedDate, 'MMMM d, yyyy')
+                      }}
+                      type="general"
+                    />
+                  </div>
+                  <DialogFooter className="mt-6">
+                    <DialogClose asChild>
+                      <Button variant="outline" className="bg-blue-500/20 hover:bg-blue-500/30 text-white border border-blue-500/50">
+                        Close
+                      </Button>
+                    </DialogClose>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+              <div className="flex gap-2">
+                <Button 
+                  onClick={() => scrollToSection('current-load')}
+                  className="bg-blue-500/20 hover:bg-blue-500/30 text-white"
+                >
+                  Current Load
+                </Button>
+                <Button 
+                  onClick={() => scrollToSection('forecasts')}
+                  className="bg-blue-500/20 hover:bg-blue-500/30 text-white"
+                >
+                  Forecasts
+                </Button>
               </div>
             </div>
           </div>
@@ -194,7 +187,7 @@ function ChartContent() {
         </div>
 
         <div id="additional-insights" className="bg-black/30 backdrop-blur-sm rounded-lg p-4 sm:p-6 shadow-xl border border-blue-500/30 scroll-mt-20">
-          <AdditionalInsightsChart   />
+          <AdditionalInsightsChart />
         </div>
       </div>
     </div>

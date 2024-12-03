@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import { useRouter } from 'next/navigation';
 import {
   LineChart,
@@ -12,17 +12,9 @@ import {
   ReferenceLine,
   ReferenceArea
 } from "recharts";
-import { Select, SelectTrigger, SelectContent, SelectItem, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { motion, AnimatePresence } from "framer-motion";
 import { format } from 'date-fns';
-
-const areas = [
-  "BSES Rajdhani Power Limited",
-  "BSES Yamuna Power Limited",
-  "Tata Power Delhi Distribution Limited",
-  "New Delhi Municipal Council"
-];
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -48,8 +40,8 @@ const itemVariants = {
   }
 };
 
-const generateRandomData = (date, area) => {
-  const seed = date.getTime() + area.length;
+const generateRandomData = (date) => {
+  const seed = date.getTime();
   const random = (min, max, seed) => {
     const x = Math.sin(seed) * 10000;
     return ((x - Math.floor(x)) * (max - min) + min);
@@ -97,9 +89,7 @@ const generateRandomData = (date, area) => {
 
 export default function CurrentLoadChart({ date }) {
   const router = useRouter();
-  const [area, setArea] = useState("BSES Rajdhani Power Limited");
-
-  const newDelhiDuckCurveData = useMemo(() => generateRandomData(date, area), [date, area]);
+  const newDelhiDuckCurveData = useMemo(() => generateRandomData(date), [date]);
   const averageLoad = Math.round(newDelhiDuckCurveData.reduce((sum, data) => sum + data.load, 0) / newDelhiDuckCurveData.length);
   const overloadTimes = newDelhiDuckCurveData.filter(data => data.isOverload);
 
@@ -119,7 +109,7 @@ export default function CurrentLoadChart({ date }) {
         className="text-center text-xl sm:text-2xl font-bold mb-2 sm:mb-4 text-white"
         variants={itemVariants}
       >
-        New Delhi Electricity Load - Duck Curve Effect
+        Electricity Load - Duck Curve Effect
       </motion.h2>
       <motion.p 
         className="text-center text-lg sm:text-xl font-semibold mb-2 sm:mb-4 text-white"
@@ -155,104 +145,68 @@ export default function CurrentLoadChart({ date }) {
       )}
       
       <motion.div 
-        className="flex flex-col lg:flex-row gap-4"
-        variants={containerVariants}
+        className="w-full"
+        variants={itemVariants}
+        whileHover={{ scale: 1.01 }}
       >
-        <motion.div 
-          className="w-full lg:w-3/4"
-          variants={itemVariants}
-          whileHover={{ scale: 1.01 }}
-        >
-          <ResponsiveContainer width="100%" height={400} minWidth={300}>
-            <LineChart data={newDelhiDuckCurveData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#555" />
-              <XAxis dataKey="time" stroke="#fff" />
-              <YAxis yAxisId="left" stroke="#fff" />
-              <YAxis yAxisId="right" orientation="right" stroke="#fff" />
-              <Tooltip 
-                contentStyle={{ 
-                  backgroundColor: '#333', 
-                  border: 'none',
-                  borderRadius: '8px',
-                  boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
-                }} 
-              />
-              <Legend />
-              <ReferenceLine y={15000} yAxisId="left" stroke="#ff4d4f" strokeDasharray="3 3" label={{ value: "Threshold (15000 MW)", fill: "#ff4d4f", position: "right" }} />
-              {overloadTimes.map((data, index) => (
-                <ReferenceArea
-                  key={index}
-                  x1={data.time}
-                  x2={data.time}
-                  yAxisId="left"
-                  fill="#ff4d4f"
-                  fillOpacity={0.1}
-                />
-              ))}
-              <Line 
-                type="monotone" 
-                dataKey="load" 
+        <ResponsiveContainer width="100%" height={400} minWidth={300}>
+          <LineChart data={newDelhiDuckCurveData}>
+            <CartesianGrid strokeDasharray="3 3" stroke="#555" />
+            <XAxis dataKey="time" stroke="#fff" />
+            <YAxis yAxisId="left" stroke="#fff" />
+            <YAxis yAxisId="right" orientation="right" stroke="#fff" />
+            <Tooltip 
+              contentStyle={{ 
+                backgroundColor: '#333', 
+                border: 'none',
+                borderRadius: '8px',
+                boxShadow: '0 4px 6px rgba(0, 0, 0, 0.1)'
+              }} 
+            />
+            <Legend />
+            <ReferenceLine y={15000} yAxisId="left" stroke="#ff4d4f" strokeDasharray="3 3" label={{ value: "Threshold (15000 MW)", fill: "#ff4d4f", position: "right" }} />
+            {overloadTimes.map((data, index) => (
+              <ReferenceArea
+                key={index}
+                x1={data.time}
+                x2={data.time}
                 yAxisId="left"
-                name="Load (MW)"
-                stroke="#8884d8" 
-                strokeWidth={3}
-                dot={(props) => {
-                  const { cx, cy, payload } = props;
-                  if (payload.isOverload) {
-                    return (
-                      <svg x={cx - 5} y={cy - 5} width={10} height={10}>
-                        <circle cx="5" cy="5" r="4" fill="#ff4d4f" stroke="#fff" />
-                      </svg>
-                    );
-                  }
-                  return null;
-                }}
-                activeDot={{ r: 8, strokeWidth: 0 }}
+                fill="#ff4d4f"
+                fillOpacity={0.1}
               />
-              <Line 
-                type="monotone" 
-                dataKey="solar" 
-                yAxisId="right"
-                name="Solar Generation (W)"
-                stroke="#ffc658" 
-                strokeWidth={2}
-                dot={{ strokeWidth: 2 }}
-                activeDot={{ r: 6, strokeWidth: 0 }}
-              />
-            </LineChart>
-          </ResponsiveContainer>
-        </motion.div>
-        
-        <motion.div 
-          className="w-full lg:w-1/4 flex flex-col justify-center items-start"
-          variants={itemVariants}
-        >
-          <motion.div 
-            className="flex flex-col gap-2 border-2 border-white p-2 rounded-md w-full"
-            whileHover={{ scale: 1.02 }}
-          >
-            <Select onValueChange={setArea}>
-              <SelectTrigger className="transition-all duration-300 hover:bg-background/80">
-                <SelectValue placeholder="Select an area" />
-              </SelectTrigger>
-              <SelectContent>
-                <AnimatePresence>
-                  {areas.map((area, index) => (
-                    <motion.div
-                      key={area}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      exit={{ opacity: 0, x: 20 }}
-                      transition={{ delay: index * 0.1 }}
-                    >
-                      <SelectItem value={area}>{area}</SelectItem>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </SelectContent>
-            </Select>
-          </motion.div>
-        </motion.div>
+            ))}
+            <Line 
+              type="monotone" 
+              dataKey="load" 
+              yAxisId="left"
+              name="Load (MW)"
+              stroke="#8884d8" 
+              strokeWidth={3}
+              dot={(props) => {
+                const { cx, cy, payload } = props;
+                if (payload.isOverload) {
+                  return (
+                    <svg x={cx - 5} y={cy - 5} width={10} height={10}>
+                      <circle cx="5" cy="5" r="4" fill="#ff4d4f" stroke="#fff" />
+                    </svg>
+                  );
+                }
+                return null;
+              }}
+              activeDot={{ r: 8, strokeWidth: 0 }}
+            />
+            <Line 
+              type="monotone" 
+              dataKey="solar" 
+              yAxisId="right"
+              name="Solar Generation (W)"
+              stroke="#ffc658" 
+              strokeWidth={2}
+              dot={{ strokeWidth: 2 }}
+              activeDot={{ r: 6, strokeWidth: 0 }}
+            />
+          </LineChart>
+        </ResponsiveContainer>
       </motion.div>
     </motion.div>
   );

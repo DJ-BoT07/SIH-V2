@@ -17,18 +17,24 @@ import {
 } from 'recharts';
 import { PEAK_THRESHOLD, generateHourlyData, calculateDailyStats } from '@/lib/utils';
 import { DataInsights } from '@/app/component/DataInsights';
+import { Button } from '@/components/ui/button';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose
+} from "@/components/ui/dialog";
 
 function ResolveContent() {
   const searchParams = useSearchParams();
   const dateString = searchParams.get('date');
-  const targetDate = dateString ? parse(dateString, 'yyyy-MM-dd', new Date()) : new Date();
-  const today = new Date();
-
-  // Generate data using shared utility
-  const generateData = useCallback(() => {
-    return generateHourlyData(targetDate, today);
-  }, [targetDate]);
-
+  const [targetDate] = useState(() => dateString ? parse(dateString, 'yyyy-MM-dd', new Date()) : new Date());
+  const [today] = useState(() => new Date());
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [priceData, setPriceData] = useState([]);
   const [stats, setStats] = useState({
     avgTermAhead: 0,
@@ -37,45 +43,109 @@ function ResolveContent() {
     peakLoad: 0
   });
 
+  // Generate data using shared utility
+  const generateData = useCallback(() => {
+    return generateHourlyData(targetDate, today);
+  }, [targetDate, today]);
+
   useEffect(() => {
     const data = generateData();
     setPriceData(data);
     setStats(calculateDailyStats(data));
   }, [generateData]);
 
+  // Handle dialog open/close
+  const handleDialogChange = useCallback((open) => {
+    setIsDialogOpen(open);
+    if (open) {
+      setTimeout(() => {
+        const insightsElement = document.getElementById('insights-content');
+        if (insightsElement) {
+          insightsElement.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+    }
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-gray-900 to-blue-900 p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto space-y-6">
-        <div className="text-center">
-          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4">
-            Market Price Analysis
-          </h1>
-          <div className="text-base sm:text-lg text-white">
-            Comparing today&apos;s Term Ahead Price with expected Real Time Price for {format(targetDate, 'MMMM d, yyyy')}
+        <div className="bg-black/30 backdrop-blur-sm rounded-lg p-6 border border-blue-500/30">
+          <div className="text-center mb-6">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-white mb-4">
+              Market Price Analysis
+            </h1>
+            <div className="text-base sm:text-lg text-white mb-4">
+              Today&apos;s Term Ahead Price vs Real Time Price for {format(targetDate, 'MMMM d, yyyy')}
+            </div>
+            <Dialog open={isDialogOpen} onOpenChange={handleDialogChange}>
+              <DialogTrigger asChild>
+                <Button variant="outline" className="bg-blue-500 hover:bg-blue-600 text-white px-6 py-3 rounded-lg transition-all duration-200 transform hover:scale-105 font-semibold shadow-lg flex items-center gap-2">
+                  <span className="material-icons text-xl">insights</span>
+                  AI Market Analysis
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-[700px] bg-gray-900/95 backdrop-blur-md border border-blue-500/30 shadow-2xl max-h-[80vh] overflow-hidden">
+                <DialogHeader>
+                  <DialogTitle className="text-2xl font-bold text-white mb-2">
+                    AI Market Analysis for {format(targetDate, 'MMMM d, yyyy')}
+                  </DialogTitle>
+                  <DialogDescription className="text-blue-200">
+                    Detailed analysis of market prices and trends
+                  </DialogDescription>
+                </DialogHeader>
+                <div 
+                  id="insights-content" 
+                  className="mt-4 p-4 bg-black/20 rounded-lg overflow-y-auto custom-scrollbar"
+                >
+                  {isDialogOpen && (
+                    <DataInsights 
+                      data={{
+                        prices: priceData.map(item => ({
+                          timeSlot: item.timeSlot,
+                          termAheadPrice: item.termAheadPrice,
+                          realTimePrice: item.realTimePrice,
+                          saving: item.saving
+                        })),
+                        summary: stats
+                      }}
+                      type="pricing"
+                    />
+                  )}
+                </div>
+                <DialogFooter className="mt-6">
+                  <DialogClose asChild>
+                    <Button variant="outline" className="bg-blue-500/20 hover:bg-blue-500/30 text-white border border-blue-500/50">
+                      Close
+                    </Button>
+                  </DialogClose>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
-        </div>
 
-        {/* Summary Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-          <div className="bg-black/30 backdrop-blur-sm rounded-lg p-4 sm:p-6 border border-blue-500/30">
-            <h3 className="text-sm sm:text-base font-semibold text-white mb-2">Today&apos;s Term Ahead Price</h3>
-            <p className="text-xl sm:text-2xl text-green-400">₹{stats.avgTermAhead}/MW</p>
-            <p className="text-xs sm:text-sm text-gray-400 mt-1">{format(today, 'MMM d, yyyy')}</p>
-          </div>
-          <div className="bg-black/30 backdrop-blur-sm rounded-lg p-4 sm:p-6 border border-red-500/30">
-            <h3 className="text-sm sm:text-base font-semibold text-white mb-2">Future Real Time Price</h3>
-            <p className="text-xl sm:text-2xl text-red-400">₹{stats.avgRealTime}/MW</p>
-            <p className="text-xs sm:text-sm text-gray-400 mt-1">{format(targetDate, 'MMM d, yyyy')}</p>
-          </div>
-          <div className="bg-black/30 backdrop-blur-sm rounded-lg p-4 sm:p-6 border border-yellow-500/30">
-            <h3 className="text-sm sm:text-base font-semibold text-white mb-2">Peak Load</h3>
-            <p className="text-xl sm:text-2xl text-yellow-400">{stats.peakLoad.toLocaleString()} MW</p>
-            <p className="text-xs sm:text-sm text-gray-400 mt-1">Maximum demand</p>
-          </div>
-          <div className="bg-black/30 backdrop-blur-sm rounded-lg p-4 sm:p-6 border border-green-500/30">
-            <h3 className="text-sm sm:text-base font-semibold text-white mb-2">Total Potential Savings</h3>
-            <p className="text-xl sm:text-2xl text-green-400">₹{stats.totalSavings.toLocaleString()}</p>
-            <p className="text-xs sm:text-sm text-gray-400 mt-1">By buying term ahead</p>
+          {/* Summary Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div className="bg-black/30 backdrop-blur-sm rounded-lg p-4 sm:p-6 border border-blue-500/30">
+              <h3 className="text-sm sm:text-base font-semibold text-white mb-2">Today&apos;s Term Ahead Price</h3>
+              <p className="text-xl sm:text-2xl text-green-400">₹{stats.avgTermAhead}/MW</p>
+              <p className="text-xs sm:text-sm text-gray-400 mt-1">{format(today, 'MMM d, yyyy')}</p>
+            </div>
+            <div className="bg-black/30 backdrop-blur-sm rounded-lg p-4 sm:p-6 border border-red-500/30">
+              <h3 className="text-sm sm:text-base font-semibold text-white mb-2">Future Real Time Price</h3>
+              <p className="text-xl sm:text-2xl text-red-400">₹{stats.avgRealTime}/MW</p>
+              <p className="text-xs sm:text-sm text-gray-400 mt-1">{format(targetDate, 'MMM d, yyyy')}</p>
+            </div>
+            <div className="bg-black/30 backdrop-blur-sm rounded-lg p-4 sm:p-6 border border-yellow-500/30">
+              <h3 className="text-sm sm:text-base font-semibold text-white mb-2">Peak Load</h3>
+              <p className="text-xl sm:text-2xl text-yellow-400">{stats.peakLoad.toLocaleString()} MW</p>
+              <p className="text-xs sm:text-sm text-gray-400 mt-1">Maximum demand</p>
+            </div>
+            <div className="bg-black/30 backdrop-blur-sm rounded-lg p-4 sm:p-6 border border-green-500/30">
+              <h3 className="text-sm sm:text-base font-semibold text-white mb-2">Total Potential Savings</h3>
+              <p className="text-xl sm:text-2xl text-green-400">₹{stats.totalSavings.toLocaleString()}</p>
+              <p className="text-xs sm:text-sm text-gray-400 mt-1">By buying term ahead</p>
+            </div>
           </div>
         </div>
 
@@ -88,7 +158,7 @@ function ResolveContent() {
                 <ComposedChart data={priceData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#555" />
                   <XAxis 
-                    dataKey="timeSlot" 
+                    dataKey="timeSlot"
                     stroke="#fff"
                     tick={{ fontSize: 12 }}
                     label={{ 
@@ -158,18 +228,18 @@ function ResolveContent() {
                     fillOpacity={0.3}
                     name="Load"
                   />
-                  <Line 
+                  <Line
                     yAxisId="left"
-                    type="monotone" 
-                    dataKey="termAheadPrice" 
+                    type="monotone"
+                    dataKey="termAheadPrice"
                     stroke="#4ade80" 
                     strokeWidth={2}
                     name={`Term Ahead Price (${format(today, 'MMM d')})`}
                   />
-                  <Line 
+                  <Line
                     yAxisId="left"
-                    type="monotone" 
-                    dataKey="realTimePrice" 
+                    type="monotone"
+                    dataKey="realTimePrice"
                     stroke="#f87171" 
                     strokeWidth={2}
                     name={`Real Time Price (${format(targetDate, 'MMM d')})`}
@@ -178,19 +248,11 @@ function ResolveContent() {
               </ResponsiveContainer>
             </div>
           </div>
-
-          <div className="lg:col-span-1">
-            <DataInsights 
-              data={priceData} 
-              type="pricing" 
-              className="h-full border border-blue-500/30"
-            />
-          </div>
         </div>
 
         {/* Price Details Table */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-2 bg-black/30 backdrop-blur-sm rounded-lg p-4 sm:p-6 border border-blue-500/30">
+        <div className="grid grid-cols-1 gap-6">
+          <div className="bg-black/30 backdrop-blur-sm rounded-lg p-4 sm:p-6 border border-blue-500/30">
             <h2 className="text-lg sm:text-xl font-semibold text-white mb-4">Market Price Details</h2>
             <div className="overflow-x-auto">
               <table className="w-full text-white text-sm sm:text-base">
@@ -226,17 +288,6 @@ function ResolveContent() {
                 </tbody>
               </table>
             </div>
-          </div>
-
-          <div className="lg:col-span-1">
-            <DataInsights 
-              data={{ 
-                hourlyData: priceData,
-                summary: stats
-              }} 
-              type="general" 
-              className="h-full border border-blue-500/30"
-            />
           </div>
         </div>
 
